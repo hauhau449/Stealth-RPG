@@ -1,0 +1,861 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Stealth RPG · 4轉/200等／裝備面板強化＋職武限制＋地圖倍率版</title>
+<style>
+  :root{ --bg:#0f1115; --fg:#e5e7eb; --muted:#94a3b8; --good:#22c55e; --bad:#ef4444; --card:#111827; --btn:#1f2937; --btnh:#374151; }
+  html,body{height:100%;margin:0}
+  body{background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",sans-serif}
+  .wrap{max-width:1140px;margin:0 auto;padding:12px}
+  .topbar{display:flex;gap:8px;align-items:center;justify-content:space-between}
+  .title{font-weight:700;color:#cbd5e1}
+  .btn{border:1px solid #0003;background:var(--btn);color:var(--fg);padding:8px 10px;border-radius:8px;cursor:pointer}
+  .btn:hover{background:var(--btnh)}
+  .btn.small{padding:4px 8px;font-size:12px;border-radius:6px}
+  .grid{display:grid;grid-template-columns:1.3fr .7fr;gap:12px;margin-top:10px}
+  .card{background:var(--card);border:1px solid #0005;border-radius:12px;padding:10px}
+  .card h3{margin:0 0 8px 0;font-size:13px;color:var(--muted);font-weight:700}
+  .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:6px}
+  .stat{background:#0b1220;border:1px solid #0005;border-radius:8px;padding:8px;font-variant-numeric:tabular-nums}
+  .hp{color:#22c55e}.mp{color:#60a5fa}.atk{color:#f472b6}.def{color:#fbbf24}.lvl{color:#a78bfa}.gold{color:#eab308}
+  .actions{display:flex;flex-wrap:wrap;gap:8px}
+  .log{height:270px;overflow:auto;background:#0b0f16;border:1px dashed #334155;padding:10px;border-radius:8px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+  .log p{margin:.35em 0}
+  .sep{height:1px;background:#0005;margin:10px 0}
+  .inv{display:flex;flex-wrap:wrap;gap:8px}
+  .pill{border:1px solid #0006;background:#0b1220;padding:6px 8px;border-radius:999px}
+  .enemy{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .bar{height:10px;background:#0b1220;border:1px solid #0005;border-radius:999px;overflow:hidden}
+  .bar>span{display:block;height:100%}
+  .bar.hp>span{background:#22c55e}.bar.mp>span{background:#60a5fa}
+  .equip{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .slot{background:#0b1220;border:1px dashed #334155;border-radius:8px;padding:8px;min-height:64px;cursor:pointer}
+  .slot b{display:block;margin-bottom:4px;color:#93a3b8;font-size:12px}
+  .slot .sub{display:block;color:#9aa4b2;font-size:12px;line-height:1.25;margin-top:4px}
+  .slot:hover{outline:1px solid #7dd3fc}
+  .kbd{font-family:ui-monospace,Menlo,Consolas,monospace;background:#111827;color:#e5e7eb;border-radius:6px;padding:2px 6px;border:1px solid #0006}
+  dialog{border:none;border-radius:12px;padding:0;box-shadow:0 10px 30px #0008;background:var(--card);color:var(--fg);max-width:820px}
+  dialog::backdrop{background:#0008}
+  .dlg{padding:12px}
+  .dlg h4{margin:0 0 8px 0;color:#cbd5e1}
+  .list{max-height:360px;overflow:auto;border:1px dashed #334155;border-radius:10px}
+  .list .row{display:flex;gap:8px;align-items:center;justify-content:space-between;border-bottom:1px dotted #334155;padding:8px}
+  .list .row:last-child{border-bottom:none}
+  .tag{font-size:12px;opacity:.85}
+  .muted{color:#9aa4b2}
+  .q-white{color:#e5e7eb} .q-green{color:#34d399} .q-blue{color:#60a5fa} .q-yellow{color:#fde047} .q-orange{color:#fb923c}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="title">Stealth RPG（裝備欄強化＋坐騎＋地圖倍率＋職武限制）</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn small" id="mapBtn">🗺️ 地圖</button>
+      <button class="btn small" id="shopBtn">🛒 商店</button>
+      <button class="btn small" id="skillBtn">📚 技能</button>
+      <button class="btn small" id="questBtn">📜 任務</button>
+      <button class="btn small" id="classBtn">🏷️ 轉職/轉生</button>
+      <button class="btn small" id="saveBtn">💾 存檔</button>
+      <button class="btn small" id="resetBtn">🗑️ 重開</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>冒險日誌</h3>
+      <div id="log" class="log"></div>
+      <div class="sep"></div>
+      <div class="actions">
+        <button class="btn" id="exploreBtn">探索（<span id="zoneName">新手草原</span>）</button>
+        <button class="btn" id="restBtn">休息</button>
+        <button class="btn" id="battleBtn">戰鬥</button>
+        <button class="btn" id="attackBtn">攻擊</button>
+        <button class="btn" id="castBtn">施放技能</button>
+        <button class="btn" id="invBtn">背包</button>
+        <button class="btn" id="runBtn" disabled>逃跑</button>
+      </div>
+      <p class="muted">快捷鍵：<span class="kbd">1</span>探索 <span class="kbd">2</span>休息 <span class="kbd">3</span>戰鬥
+      <span class="kbd">4</span>攻擊 <span class="kbd">5</span>技能 <span class="kbd">6</span>背包 <span class="kbd">X</span>逃跑 ｜ <span class="kbd">M</span>地圖 <span class="kbd">O</span>商店 <span class="kbd">Q</span>任務 <span class="kbd">C</span>轉職</p>
+    </div>
+
+    <div class="card">
+      <h3>狀態</h3>
+      <div class="stats" id="stats"></div>
+      <div class="sep"></div>
+
+      <h3>敵人情報</h3>
+      <div id="enemyBox" class="enemy">
+        <div class="stat">名稱：<span id="eName" class="lvl">—</span></div>
+        <div class="stat">等級：<span id="eLvl" class="lvl">—</span></div>
+        <div class="stat">攻擊：<span id="eAtk" class="atk">—</span></div>
+        <div class="stat">防禦：<span id="eDef" class="def">—</span></div>
+        <div class="stat">HP
+          <div class="bar hp"><span id="eHpBar" style="width:0%"></span></div>
+          <span id="eHpTxt" class="hp">0/0</span>
+        </div>
+        <div class="stat">MP
+          <div class="bar mp"><span id="eMpBar" style="width:0%"></span></div>
+          <span id="eMpTxt" class="mp">0/0</span>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+      <h3>裝備（點擊欄位可強化／顯示花費）</h3>
+      <div class="equip">
+        <div class="slot" id="slot-weapon"><b>武器</b><span id="equip-weapon" class="muted">（空）</span><span id="equip-weapon-sub" class="sub"></span></div>
+        <div class="slot" id="slot-armor"><b>防具</b><span id="equip-armor" class="muted">（空）</span><span id="equip-armor-sub" class="sub"></span></div>
+        <div class="slot" id="slot-acc"><b>飾品</b><span id="equip-acc" class="muted">（空）</span><span id="equip-acc-sub" class="sub"></span></div>
+        <div class="slot" id="slot-mount"><b>坐騎</b><span id="equip-mount" class="muted">（空）</span><span id="equip-mount-sub" class="sub"></span></div>
+      </div>
+
+      <div class="sep"></div>
+      <h3>背包（預覽）</h3>
+      <div class="inv" id="inv"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 對話窗 -->
+<dialog id="invDlg"><div class="dlg">
+  <h4>🎒 背包</h4>
+  <div class="list" id="invList"></div>
+  <div style="display:flex;justify-content:space-between;margin-top:8px">
+    <div class="muted">提示：裝備面板也可以直接強化／顯示花費。</div>
+    <div><button class="btn small" onclick="invDlg.close()">關閉</button></div>
+  </div>
+</div></dialog>
+
+<dialog id="shopDlg"><div class="dlg">
+  <h4>🛒 小鎮商店（白品＋戰馬）</h4>
+  <div class="list" id="shopList"></div>
+  <div style="display:flex;justify-content:space-between;margin-top:8px">
+    <div class="gold">你的金幣：<b id="shopGold">0</b>G</div>
+    <div><button class="btn small" id="restockBtn">補貨</button> <button class="btn small" onclick="shopDlg.close()">關閉</button></div>
+  </div>
+</div></dialog>
+
+<dialog id="mapDlg"><div class="dlg">
+  <h4>🗺️ 地圖（依等級開放；每張有倍率）</h4>
+  <div class="list" id="zoneList"></div>
+  <div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn small" onclick="mapDlg.close()">關閉</button></div>
+</div></dialog>
+
+<dialog id="skillDlg"><div class="dlg">
+  <h4>📚 技能</h4>
+  <div class="list" id="skillList"></div>
+  <div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn small" onclick="skillDlg.close()">關閉</button></div>
+</div></dialog>
+
+<dialog id="questDlg"><div class="dlg">
+  <h4>📜 任務（清怪獲藍品）</h4>
+  <div class="list" id="questList"></div>
+  <div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn small" onclick="questDlg.close()">關閉</button></div>
+</div></dialog>
+
+<dialog id="classDlg"><div class="dlg">
+  <h4>🏷️ 轉職/轉生</h4>
+  <p class="muted">門檻：1轉Lv10／2轉Lv30／3轉Lv70／4轉Lv120。等級不夠按「選擇」會提示。</p>
+  <div class="list" id="classList"></div>
+  <div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn small" onclick="classDlg.close()">關閉</button></div>
+</div></dialog>
+
+<script>
+(()=>{
+// ====== 工具 ======
+const $ = s=>document.querySelector(s);
+const log = $("#log");
+const LKEY = "stealth_rpg_allin_4tier_200_WEAPON_LOCK_mount_enh_v2";
+
+const rnd=(n,m)=>Math.floor(Math.random()*(m-n+1))+n;
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const say = (html)=>{ const p=document.createElement("p"); p.innerHTML=html; log.appendChild(p); log.scrollTop=log.scrollHeight; autosave(); };
+const mkBtn=(text, fn)=>{ const b=document.createElement("button"); b.className="btn small"; b.textContent=text; b.onclick=fn; return b; };
+
+// ====== 調參 ======
+// 轉數 EXP 乘數：預設 1.6（想嚴格翻倍改 2）
+const TIER_EXP_MULT = 1.6;
+// Zone 強度倍率：每地圖自帶（見 ZONES.zoneMul）。另外依玩家等級與轉生再加乘。
+const LV_SCALE_PER_LEVEL = 0.07;    // 等級對怪物成長
+const TIER_ENEMY_BONUS = 0.25;      // 每「轉」額外週目倍率
+// 強化成功率基礎：70% 起，每 +1 降 3%，最低 50%
+const ENH_BASE = 0.7, ENH_FLOOR = 0.5, ENH_DROP = 0.03;
+
+// ====== 品質與強化 ======
+const QUALS = [
+  {k:"白", css:"q-white", mult:1.00, next:"綠"},
+  {k:"綠", css:"q-green", mult:1.15, next:"藍"},
+  {k:"藍", css:"q-blue",  mult:1.35, next:"黃"},
+  {k:"黃", css:"q-yellow",mult:1.60, next:"橘"},
+  {k:"橘", css:"q-orange",mult:1.90, next:null},
+];
+const qualIndex = (qk)=>QUALS.findIndex(q=>q.k===qk);
+const nextQual = (qk)=>QUALS[qualIndex(qk)]?.next||null;
+const makeEquipId=(base,qk="白",plus=0)=>`${base}[${qk}]${plus>0?`+${plus}`:""}`;
+function parseEquipId(id){ const m=id.match(/^(.+)\[([白綠藍黃橘])\](?:\+(\d+))?$/); return m?{base:m[1],qk:m[2],plus:Number(m[3]||0)}:null; }
+function renderEquipName(id){
+  if(!id) return "";
+  if(id==="坐騎：戰馬") return `<span class="q-yellow">坐騎：戰馬</span>`;
+  const info=parseEquipId(id); if(!info) return id;
+  const css=QUALS[qualIndex(info.qk)].css;
+  return `<span class="${css}">${info.base}[${info.qk}]${info.plus?`+${info.plus}`:""}</span>`;
+}
+
+// ====== 裝備與職武限制 ======
+/*
+  type: weapon 類別（"sword" 劍、"staff" 杖、"dagger" 匕首）、armor、acc、mount
+  職業路線限制：
+    Warrior: 只能 sword
+    Mage   : 只能 staff
+    Rogue  : 只能 dagger
+    Novice : 可裝備任一初階武器（木劍/法杖/匕首）
+*/
+const BASE_EQUIP = {
+  "木劍":     {slot:"weapon", type:"sword", mods:{atk:2}},
+  "法杖":     {slot:"weapon", type:"staff", mods:{atk:2, maxmp:5}},
+  "匕首":     {slot:"weapon", type:"dagger", mods:{atk:1}},
+  "藍鋼劍":   {slot:"weapon", type:"sword", mods:{atk:5}},
+  "皮甲":     {slot:"armor",  type:"armor", mods:{def:1, maxhp:5}},
+  "學者斗篷": {slot:"armor",  type:"armor", mods:{maxmp:8}},
+  "符文外套": {slot:"armor",  type:"armor", mods:{def:3, maxhp:20}},
+  "幸運戒指": {slot:"acc",    type:"acc",   mods:{atk:1,def:1}},
+  // 坐騎（不吃品質）
+  "坐騎：戰馬": {slot:"mount", type:"mount", mods:{}},
+};
+
+function canEquipWeaponByClass(baseName){
+  const p=game.player;
+  const route = p.jobPath || "Novice";
+  const meta = BASE_EQUIP[baseName];
+  if(!meta || meta.slot!=="weapon") return true; // 非武器不限
+  const wtype = meta.type; // sword/staff/dagger
+  if(route==="Novice") return ["sword","staff","dagger"].includes(wtype);
+  if(route.startsWith("Warrior")) return wtype==="sword";
+  if(route.startsWith("Mage"))    return wtype==="staff";
+  if(route.startsWith("Rogue"))   return wtype==="dagger";
+  return true;
+}
+
+// ====== 技能（四轉授奧義） ======
+const SKILL = {
+  armorbreak:{ id:"armorbreak", name:"破甲斬", type:"主動", mp:3, use:(p,e)=>{ let dmg=Math.max(2,rnd(p.atk+3,p.atk+8)-Math.floor(e.def*0.6)); e.hp=clamp(e.hp-dmg,0,e.maxhp); say(`你施放<b>破甲斬</b>，造成 <span class="hp">-${dmg}</span>。`);} },
+  fireball:{ id:"fireball", name:"火球術", type:"主動", mp:5, use:(p,e)=>{ let dmg=Math.max(4,rnd(p.atk+6,p.atk+14)-Math.floor(e.def*0.7)); e.hp=clamp(e.hp-dmg,0,e.maxhp); say(`你施放<b>火球術</b>，造成 <span class="hp">-${dmg}</span>。`);} },
+  smash:{ id:"smash", name:"猛擊", type:"主動", mp:4, use:(p,e)=>{ let dmg=Math.max(3,rnd(p.atk+5,p.atk+11)-e.def); e.hp=clamp(e.hp-dmg,0,e.maxhp); say(`你使出<b>猛擊</b>，<span class="hp">-${dmg}</span>。`);} },
+  flurry:{ id:"flurry", name:"連擊", type:"主動", mp:4, use:(p,e)=>{ let hits=rnd(2,3), tot=0; for(let i=0;i<hits;i++){ tot+=Math.max(1,rnd(p.atk+1,p.atk+5)-Math.floor(e.def*0.8)); } e.hp=clamp(e.hp-tot,0,e.maxhp); say(`你施展<b>連擊</b> ${hits}段，合計 <span class="hp">-${tot}</span>。`);} },
+  vitality:{ id:"vitality", name:"活力", type:"被動", mp:0, passive:(p)=>{ p.maxhp+=10; p.hp=Math.min(p.hp+10,p.maxhp);} },
+  focus:{ id:"focus", name:"專注", type:"被動", mp:0, passive:(p)=>{ p.maxmp+=6; p.mp=Math.min(p.mp+6,p.maxmp);} },
+  omnislash:{ id:"omnislash", name:"奧義：萬斬", type:"主動", mp:8, use:(p,e)=>{ let h=rnd(4,6), tot=0; for(let i=0;i<h;i++){ tot+=Math.max(2,rnd(p.atk+6,p.atk+14)-Math.floor(e.def*0.6)); } e.hp=clamp(e.hp-tot,0,e.maxhp); say(`你使出<b>奧義·萬斬</b>！合計 <span class="hp">-${tot}</span>。`);} }
+};
+
+// ====== 敵人資料 ======
+const ENEMIES = {
+  "史萊姆":      {hp:20,  mp:0,  atk:4,   def:1,  gold:[3,8],    exp:[14,22],   drops:[]},
+  "哥布林":      {hp:28,  mp:3,  atk:6,   def:2,  gold:[5,11],   exp:[18,28],   drops:[]},
+  "樹精":        {hp:32,  mp:4,  atk:7,   def:3,  gold:[7,13],   exp:[22,32],   drops:[]},
+  "巨鼠":        {hp:40,  mp:0,  atk:9,   def:3,  gold:[9,16],   exp:[30,44],   drops:[]},
+  "石像鬼":      {hp:58,  mp:6,  atk:12,  def:5,  gold:[14,22],  exp:[48,72],   drops:[]},
+
+  "夜獵豹":      {hp:260, mp:30, atk:55,  def:18, gold:[45,70],  exp:[300,420], drops:[]},
+  "虛空蟲巢":    {hp:320, mp:20, atk:60,  def:22, gold:[55,85],  exp:[360,520], drops:[]},
+  "星霜守衛":    {hp:380, mp:40, atk:68,  def:28, gold:[70,110], exp:[440,620], drops:[]},
+  "流光騎士":    {hp:430, mp:30, atk:75,  def:32, gold:[85,130], exp:[520,720], drops:[]},
+
+  "暴雪巨靈":    {hp:650,  mp:40, atk:70,  def:28, boss:true, gold:[140,180], exp:[1000,1300], drops:[{item:makeEquipId("幸運戒指","藍"), rate:1}]},
+  "深淵之眼":    {hp:900,  mp:60, atk:88,  def:36, boss:true, gold:[180,240], exp:[1400,1800], drops:[{item:makeEquipId("藍鋼劍","藍"),   rate:1}]},
+  "熾焰火龍":    {hp:1200, mp:80, atk:115, def:44, boss:true, gold:[240,320], exp:[2200,2800], drops:[{item:makeEquipId("符文外套","藍"), rate:1}]},
+  "虛空天君":    {hp:2000, mp:120,atk:155, def:60, boss:true, gold:[380,520], exp:[3800,5200], drops:[
+                    {item:makeEquipId("藍鋼劍","藍"), rate:0.5},
+                    {item:makeEquipId("符文外套","藍"), rate:0.5}
+                  ]},
+};
+
+// ====== 地圖（每張有 zoneMul 強度倍率） ======
+const ZONES = [
+  {id:"plains",   name:"新手草原",             minLv:1,   range:[1,3],    zoneMul:0.9,  pool:["史萊姆","哥布林"]},
+  {id:"forest",   name:"陰暗森林",             minLv:3,   range:[3,6],    zoneMul:1.0,  pool:["哥布林","樹精","巨鼠"]},
+  {id:"cave",     name:"回音洞窟",             minLv:8,   range:[6,10],   zoneMul:1.1,  pool:["巨鼠","石像鬼"]},
+  {id:"ruins",    name:"古遺跡",               minLv:15,  range:[10,16],  zoneMul:1.2,  pool:["石像鬼"]},
+
+  // 1～3轉 Boss 專圖
+  {id:"ice_temple", name:"冰封神殿·王座間（Boss）",    minLv:20, zoneMul:1.3, pool:["暴雪巨靈"],  bossOnly:true},
+  {id:"abyss",      name:"深淵裂隙·凝視之窟（Boss）",  minLv:35, zoneMul:1.5, pool:["深淵之眼"],  bossOnly:true},
+  {id:"starfall",   name:"星墜荒原·隕耀祭壇（Boss）",  minLv:70, zoneMul:1.7, pool:["熾焰火龍"],  bossOnly:true},
+
+  // 中後期練等
+  {id:"marsh",    name:"濕鳴沼澤",             minLv:22,  range:[16,24],  zoneMul:1.25, pool:["樹精","巨鼠","石像鬼"]},
+  {id:"cliffs",   name:"霧斷懸崖",             minLv:30,  range:[24,32],  zoneMul:1.35, pool:["石像鬼"]},
+
+  // 4 轉等級：一般 + Boss
+  {id:"sunken_capital", name:"沉沒王都",       minLv:120, range:[120,140], zoneMul:1.9,  pool:["夜獵豹","虛空蟲巢","星霜守衛"]},
+  {id:"sanctum",        name:"王朝聖域·審判殿（Boss）", minLv:120, zoneMul:2.1, pool:["虛空天君"], bossOnly:true},
+
+  // 140～160 過渡
+  {id:"sky_realm", name:"天空裂谷",            minLv:140, range:[140,160], zoneMul:2.25, pool:["夜獵豹","星霜守衛","流光騎士"]},
+
+  // 160～200 最終
+  {id:"void_frontier", name:"虛空邊境",        minLv:160, range:[160,200], zoneMul:2.5,  pool:["夜獵豹","虛空蟲巢","星霜守衛","流光騎士"]},
+];
+
+// ====== 任務（清怪→藍品） ======
+const QUESTS = [
+  {id:"KILL10",  name:"清理：初階威脅",   desc:"擊敗任意怪物 10 隻。",  need:10,  done:0, reward:{gold:80,  item:makeEquipId("藍鋼劍","藍")}, state:"active"},
+  {id:"KILL30",  name:"清理：中階威脅",   desc:"擊敗任意怪物 30 隻。",  need:30,  done:0, reward:{gold:150, item:makeEquipId("符文外套","藍")}, state:"locked"},
+  {id:"KILL100", name:"清理：高階威脅",   desc:"擊敗任意怪物 100 隻。", need:100, done:0, reward:{gold:300, item:makeEquipId("幸運戒指","藍")}, state:"locked"},
+];
+
+// ====== 商店（白品＋戰馬） ======
+const SHOP_WHITE_ONLY = ["木劍","法杖","匕首","皮甲","學者斗篷","幸運戒指"];
+
+// ====== 遊戲狀態 ======
+const game = {
+  player:{ name:"你", lvl:1, exp:0, tier:0, job:"Novice", jobPath:null,
+           hp:30, mp:10, maxhp:30, maxmp:10, atk:6, def:2, gold:200,
+           equip:{weapon:null,armor:null,acc:null,mount:null},
+           learned:["armorbreak"], activeSkill:"armorbreak" },
+  inv:{},
+  state:{ zone:"plains", inBattle:false, enemy:null, kills:0 },
+  quests: JSON.parse(JSON.stringify(QUESTS)),
+  shop:{ stock:[] }
+};
+
+// ====== EXP 需求（至 200；依轉數加倍級距）======
+function needExp(level, tier){
+  const base = Math.ceil(16 + 6 * Math.pow(level, 1.15)); // 比先前稍快
+  return Math.max(18, Math.floor(base * Math.pow(TIER_EXP_MULT, tier||0)));
+}
+function gainExp(v){ const p=game.player; p.exp+=v; while(p.exp>=needExp(p.lvl,p.tier)){ p.exp-=needExp(p.lvl,p.tier); levelUp(); } render(); }
+function levelUp(){
+  const p=game.player;
+  const hp=rnd(5,9), mp=rnd(2,4), a=rnd(1,2), d=rnd(1,2);
+  p.lvl++; p.maxhp+=hp; p.maxmp+=mp; p.atk+=a; p.def+=d; p.hp=p.maxhp; p.mp=p.maxmp;
+  say(`🎉 Lv.${p.lvl}！HP+${hp} MP+${mp} 攻+${a} 防+${d}`);
+}
+
+// ====== 地圖/敵人生成（含地圖倍率＋等級＆轉生倍率）======
+const currentZone=()=>ZONES.find(z=>z.id===game.state.zone);
+const zoneUnlocked=z=> game.player.lvl >= (z.minLv||1);
+
+function makeEnemy(){
+  const z=currentZone();
+  const name = z.pool[ rnd(0,z.pool.length-1) ];
+  const base = ENEMIES[name];
+
+  // 等級：Boss 專圖用玩家等級上修；一般圖採建議區間
+  const level = z.bossOnly ? Math.max(z.minLv, game.player.lvl) : rnd(z.range?.[0]||z.minLv, z.range?.[1]||z.minLv+2);
+
+  // 基礎成長（等級）、地圖倍率、轉生倍率（週目）、玩家等級額外少量校正
+  const lvlScale  = 1 + (level-1)*LV_SCALE_PER_LEVEL;
+  const tierScale = 1 + game.player.tier*TIER_ENEMY_BONUS;
+  const zoneScale = z.zoneMul || 1;
+  const playerAdj = 1 + Math.max(0, (game.player.lvl - (z.range?.[0]||z.minLv)) ) * 0.015; // 玩家等級高→怪略強
+
+  const scale = lvlScale * tierScale * zoneScale * playerAdj;
+
+  const e = {
+    name, lvl:level,
+    maxhp:Math.round((base.hp||30)*scale), hp:0,
+    maxmp:Math.round((base.mp||0)*scale), mp:0,
+    atk:Math.round(base.atk*scale), def:Math.round(base.def*scale),
+    gold:Math.round(rnd(base.gold[0],base.gold[1])*zoneScale),
+    exp:Math.round(rnd(base.exp[0],base.exp[1])*zoneScale*tierScale),
+    drops:base.drops||[], boss:!!base.boss
+  };
+  e.hp=e.maxhp; e.mp=e.maxmp; return e;
+}
+
+// ====== 裝備計算 ======
+function applyMods(p, mods, sign=+1){
+  if(mods.atk) p.atk+=sign*mods.atk;
+  if(mods.def) p.def+=sign*mods.def;
+  if(mods.maxhp){ p.maxhp+=sign*mods.maxhp; p.hp=Math.min(p.hp,p.maxhp); }
+  if(mods.maxmp){ p.maxmp+=sign*mods.maxmp; p.mp=Math.min(p.mp,p.maxmp); }
+}
+function equipStatsFromId(id){
+  if(!id) return null;
+  if(id==="坐騎：戰馬") return {slot:"mount", mods:{}, qk:"黃", plus:0, base:"坐騎：戰馬", type:"mount"};
+  const info=parseEquipId(id); if(!info) return null;
+  const base=BASE_EQUIP[info.base]; if(!base) return null;
+  const q=QUALS[qualIndex(info.qk)];
+  const scaled={};
+  for(const k of Object.keys(base.mods)){
+    const v=base.mods[k];
+    const after = Math.round(v*q.mult);
+    scaled[k]=after + (k==="atk"||k==="def" ? info.plus : (k.startsWith("max")? info.plus*2 : 0));
+  }
+  return {slot:base.slot, mods:scaled, qk:info.qk, plus:info.plus, base:info.base, type:base.type};
+}
+function enhanceCost(id){
+  const info=parseEquipId(id); if(!info) return Infinity;
+  const baseVal = 50*(qualIndex(info.qk)+1)*((info.plus||0)+1);
+  return baseVal;
+}
+function enhChance(plus){ return Math.max(ENH_FLOOR, ENH_BASE - ENH_DROP*plus); }
+
+// ====== 背包操作 / 融合 / 強化 / 販售 ======
+const addItem=(n,c=1)=> game.inv[n]=(game.inv[n]||0)+c;
+function decItem(n,c=1){ if(!game.inv[n]) return; game.inv[n]-=c; if(game.inv[n]<=0) delete game.inv[n]; }
+const hasItem=(n,c=1)=> (game.inv[n]||0)>=c;
+
+function tryFuse(id){
+  const info=parseEquipId(id); if(!info) return say("此物不可融合。");
+  if(qualIndex(info.qk)>=qualIndex("藍")) return say("融合最高升到藍。");
+  const needId = makeEquipId(info.base, info.qk);
+  if((game.inv[needId]||0) < 3) return say("需要同款同品質 ×3。");
+  decItem(needId,3);
+  const up = nextQual(info.qk);
+  const newId = makeEquipId(info.base, up);
+  addItem(newId,1);
+  say(`🔷 融合成功：${renderEquipName(newId)}`);
+  openInv(); render();
+}
+function replaceInventoryItem(oldId,newId){
+  const p=game.player;
+  if(p.equip.weapon===oldId) p.equip.weapon=newId;
+  if(p.equip.armor===oldId)  p.equip.armor=newId;
+  if(p.equip.acc===oldId)    p.equip.acc=newId;
+  decItem(oldId,1); addItem(newId,1);
+}
+function recomputeEquipAfterChange(){
+  const p=game.player, slots=["weapon","armor","acc"];
+  slots.forEach(s=>{ const id=p.equip[s]; if(id){ const st=equipStatsFromId(id); if(st) applyMods(p, st.mods, -1); } });
+  slots.forEach(s=>{ const id=p.equip[s]; if(id){ const st=equipStatsFromId(id); if(st) applyMods(p, st.mods, +1); } });
+}
+function tryEnhance(id){
+  const info=parseEquipId(id); if(!info) return say("此裝備不可強化。");
+  if(qualIndex(info.qk)<qualIndex("藍")) return say("藍品以上才能強化。");
+  const cost = enhanceCost(id);
+  if(game.player.gold<cost) return say(`需要 ${cost}G。`);
+  game.player.gold -= cost;
+  const ok = Math.random()<enhChance(info.plus);
+  if(ok){
+    const nextPlus = info.plus+1;
+    if(nextPlus>=10){
+      const upQ = nextQual(info.qk);
+      if(!upQ){
+        const newId = makeEquipId(info.base, info.qk, nextPlus);
+        replaceInventoryItem(id,newId);
+        say(`已達最高品質（橘），強化 → ${renderEquipName(newId)}`);
+      }else{
+        const newId = makeEquipId(info.base, upQ, 0);
+        replaceInventoryItem(id,newId);
+        say(`⭐ 品質提升為 ${renderEquipName(newId)}（強化歸 0）`);
+      }
+    }else{
+      const newId = makeEquipId(info.base, info.qk, nextPlus);
+      replaceInventoryItem(id,newId);
+      say(`✅ 強化成功 → ${renderEquipName(newId)}`);
+    }
+  }else{
+    const newId = makeEquipId(info.base, info.qk, Math.max(0, info.plus-1));
+    replaceInventoryItem(id,newId);
+    say(`❌ 強化失敗 → ${renderEquipName(newId)}`);
+  }
+  recomputeEquipAfterChange(); render(); openInv();
+}
+function sellPrice(name){
+  if(name==="坐騎：戰馬") return 0; // 不回收
+  const info=parseEquipId(name);
+  if(!info) return name.includes("藥水")?4:5;
+  const baseVal = 10 + Object.keys(BASE_EQUIP[info.base].mods).length*6;
+  const mult = QUALS[qualIndex(info.qk)].mult;
+  return Math.max(5, Math.round(baseVal*mult) + info.plus*5);
+}
+
+// ====== 商店 ======
+function ensureShop(){
+  if(game.shop.stock.length) return;
+  const whites = SHOP_WHITE_ONLY.map(b=>({name:makeEquipId(b,"白"), price: Math.max(15, 8+Object.keys(BASE_EQUIP[b].mods).length*8), qty:rnd(1,3)}));
+  const pots = [
+    {name:"小治療藥水", price:8, qty:rnd(3,6)},
+    {name:"小魔力藥水", price:10, qty:rnd(3,6)},
+    {name:"煙霧彈", price:15, qty:rnd(2,4)}
+  ];
+  game.shop.stock = [...pots, ...whites, {name:"坐騎：戰馬", price:10000, qty:1}];
+}
+function openShop(){
+  if(game.state.inBattle) return say("戰鬥中不能逛街。");
+  ensureShop(); $("#shopGold").textContent=game.player.gold;
+  const list=$("#shopList"); list.innerHTML="";
+  game.shop.stock.forEach(s=>{
+    const row=document.createElement("div"); row.className="row";
+    row.innerHTML=`<div><b>${renderEquipName(s.name)}</b> <span class="tag">價格 ${s.price}G｜庫存 ${s.qty}</span></div>`;
+    const b=mkBtn("購買", ()=>{
+      if(s.qty<=0) return alert("售罄");
+      if(game.player.gold<s.price) return alert("金幣不足");
+      // 職武限制預檢（只有武器會檢）
+      if(parseEquipId(s.name)){
+        const meta=parseEquipId(s.name);
+        if(BASE_EQUIP[meta.base]?.slot==="weapon" && !canEquipWeaponByClass(meta.base)){
+          return alert("你的職業目前無法使用這種武器。");
+        }
+      }
+      game.player.gold-=s.price; s.qty--; addItem(s.name,1);
+      $("#shopGold").textContent=game.player.gold; render(); openShop();
+    });
+    row.appendChild(b); list.appendChild(row);
+  });
+  shopDlg.showModal();
+}
+function restockShop(){ game.shop.stock.forEach(s=>{ if(s.name!=="坐騎：戰馬") s.qty = Math.min(9, s.qty + (s.name.includes("藥水")||s.name==="煙霧彈"?rnd(2,4):rnd(0,1))); }); say("🛒 商店補貨完成。"); openShop(); }
+
+// ====== 任務 ======
+function unlockNextKillQuest(){
+  const q1=game.quests.find(q=>q.id==="KILL10"), q2=game.quests.find(q=>q.id==="KILL30"), q3=game.quests.find(q=>q.id==="KILL100");
+  if(q1 && q1.state==="done" && q2.state==="locked"){ q2.state="active"; say("📜 開啟任務：清理：中階威脅"); }
+  if(q2 && q2.state==="done" && q3.state==="locked"){ q3.state="active"; say("📜 開啟任務：清理：高階威脅"); }
+}
+function onKill(){
+  game.state.kills++;
+  game.quests.forEach(q=>{
+    if(q.state!=="active") return;
+    if(typeof q.done==="number"){ q.done++; if(q.done>=q.need){ q.state="done"; rewardQuest(q); unlockNextKillQuest(); } }
+  });
+}
+function rewardQuest(q){
+  const r=q.reward||{};
+  if(r.gold) game.player.gold+=r.gold;
+  if(r.item) addItem(r.item,1);
+  say(`✅ 任務完成：<b>${q.name}</b>！獎勵：${r.gold?`${r.gold}G`:""} ${(r.item?renderEquipName(r.item):"")}`);
+}
+
+// ====== 轉職（等級不足會提示；四轉給奧義） ======
+const classes={
+  Novice:{name:"初心者"},
+  Warrior1:{name:"戰士 I"}, Mage1:{name:"法師 I"}, Rogue1:{name:"盜賊 I"},
+  Warrior2:{name:"戰士 II"}, Mage2:{name:"法師 II"}, Rogue2:{name:"盜賊 II"},
+  Warrior3:{name:"戰士 III"}, Mage3:{name:"法師 III"}, Rogue3:{name:"盜賊 III"},
+  Warrior4:{name:"戰士 IV"},  Mage4:{name:"法師 IV"},  Rogue4:{name:"盜賊 IV"},
+};
+function openClass(){
+  const list=$("#classList"); list.innerHTML="";
+  const p=game.player, t=p.tier||0;
+  let rows=[];
+  if(t===0){
+    rows=[["Warrior1","戰士 I",10,"習得猛擊（劍系）"],["Mage1","法師 I",10,"習得火球術（杖系）"],["Rogue1","盜賊 I",10,"習得連擊（匕首系）"]];
+  }else if(t===1){
+    rows=[[p.jobPath?.startsWith("Warrior")?"Warrior2":p.jobPath?.startsWith("Mage")?"Mage2":"Rogue2", classes[p.jobPath?.startsWith("Warrior")?"Warrior2":p.jobPath?.startsWith("Mage")?"Mage2":"Rogue2"].name,30,"二轉強化（維持武器系統）"]];
+  }else if(t===2){
+    rows=[[p.jobPath?.startsWith("Warrior")?"Warrior3":p.jobPath?.startsWith("Mage")?"Mage3":"Rogue3", classes[p.jobPath?.startsWith("Warrior")?"Warrior3":p.jobPath?.startsWith("Mage")?"Mage3":"Rogue3"].name,70,"三轉強化"]];
+  }else if(t===3){
+    rows=[[p.jobPath?.startsWith("Warrior")?"Warrior4":p.jobPath?.startsWith("Mage")?"Mage4":"Rogue4", classes[p.jobPath?.startsWith("Warrior")?"Warrior4":p.jobPath?.startsWith("Mage")?"Mage4":"Rogue4"].name,120,"四轉授予奧義"]];
+  }else{
+    list.innerHTML=`<div class="row"><span class="muted">已達四轉。</span></div>`; classDlg.showModal(); return;
+  }
+  rows.forEach(r=>{
+    const row=document.createElement("div"); row.className="row";
+    row.innerHTML=`<div><b>${r[1]}</b> <span class="tag">需求 Lv.${r[2]}</span><br><span class="muted">${r[3]}</span></div>`;
+    const b=mkBtn("選擇", ()=>tryClass(r[0], r[2]));
+    row.appendChild(b); list.appendChild(row);
+  });
+  classDlg.showModal();
+}
+function tryClass(key, needLv){
+  const p=game.player;
+  if(p.lvl<needLv) return say(`🔒 等級不足（需 Lv.${needLv}）。`);
+  const route = key.startsWith("Warrior")?"Warrior": key.startsWith("Mage")?"Mage":"Rogue";
+  if(!p.jobPath) p.jobPath=route;
+  p.tier++; p.job=key;
+  if(key.endsWith("1")){
+    if(route==="Warrior") p.learned.push("smash");
+    if(route==="Mage")    p.learned.push("fireball");
+    if(route==="Rogue")   p.learned.push("flurry");
+    p.activeSkill = route==="Warrior"?"smash":route==="Mage"?"fireball":"flurry";
+  }
+  if(key.endsWith("4") && !p.learned.includes("omnislash")){ p.learned.push("omnislash"); say("📜 你領悟了奧義：萬斬"); }
+  say(`🏷️ 完成 ${classes[key].name}（${p.tier}轉）。`);
+  classDlg.close(); render();
+}
+
+// ====== 渲染 ======
+function render(){
+  const p=game.player;
+  $("#zoneName").textContent=currentZone().name;
+  $("#stats").innerHTML = `
+    <div class="stat hp">HP：${p.hp}/${p.maxhp}</div>
+    <div class="stat mp">MP：${p.mp}/${p.maxmp}</div>
+    <div class="stat atk">攻擊：${p.atk}</div>
+    <div class="stat def">防禦：${p.def}</div>
+    <div class="stat lvl">等級：${p.lvl}（EXP ${p.exp}/${needExp(p.lvl,p.tier)}）</div>
+    <div class="stat gold">金幣：${p.gold}｜轉生：${p.tier}轉｜職業：${classes[p.job]?.name||p.job}</div>`;
+  $("#inv").innerHTML = Object.keys(game.inv).length ? Object.entries(game.inv).map(([n,c])=>`<span class="pill">${renderEquipName(n)} × ${c}</span>`).join("") : `<span class="pill muted">（空）</span>`;
+  renderEnemy(); renderEquipSlots();
+}
+function renderEnemy(){
+  const e=game.state.enemy;
+  $("#eName").textContent=e?e.name:"—";
+  $("#eLvl").textContent=e?e.lvl:"—";
+  $("#eAtk").textContent=e?e.atk:"—";
+  $("#eDef").textContent=e?e.def:"—";
+  $("#eHpTxt").textContent=e?`${e.hp}/${e.maxhp}`:"0/0";
+  $("#eMpTxt").textContent=e?`${e.mp}/${e.maxmp}`:"0/0";
+  $("#eHpBar").style.width = e?`${Math.round(e.hp/e.maxhp*100)}%`:"0%";
+  $("#eMpBar").style.width = e?`${Math.round((e.mp||0)/(e.maxmp||1)*100)}%`:"0%";
+}
+function renderEquipSlots(){
+  const p=game.player;
+  const slots=["weapon","armor","acc","mount"];
+  slots.forEach(s=>{
+    const id=p.equip[s];
+    $(`#equip-${s}`).innerHTML = id? renderEquipName(id) : "（空）";
+    const sub = $(`#equip-${s}-sub`);
+    if(id){
+      const st = equipStatsFromId(id);
+      if(st && (s!=="mount")){
+        const mods = st.mods;
+        const parts=[];
+        if(mods.atk) parts.push(`攻+${mods.atk}`);
+        if(mods.def) parts.push(`防+${mods.def}`);
+        if(mods.maxhp) parts.push(`上限HP+${mods.maxhp}`);
+        if(mods.maxmp) parts.push(`上限MP+${mods.maxmp}`);
+        const costTxt = (parseEquipId(id) && qualIndex(parseEquipId(id).qk)>=qualIndex("藍"))? `｜強化費：${enhanceCost(id)}G（成功率 ${Math.round(enhChance(parseEquipId(id).plus)*100)}%）` : "";
+        sub.innerHTML = parts.join("、") + costTxt;
+      }else if(s==="mount"){
+        sub.innerHTML = "探索拾金 +5G（需裝備）";
+      }else{
+        sub.textContent="";
+      }
+    }else{
+      sub.textContent="";
+    }
+  });
+}
+
+// ====== 存檔 ======
+function autosave(){ try{ localStorage.setItem(LKEY, JSON.stringify(game)); }catch(e){} }
+function load(){ try{ const raw=localStorage.getItem(LKEY); if(raw){ const g=JSON.parse(raw); Object.assign(game,g); } }catch(e){} }
+
+// ====== 背包視窗 ======
+const invDlg=$("#invDlg");
+function openInv(){
+  const list=$("#invList"); list.innerHTML="";
+  if(!Object.keys(game.inv).length){ list.innerHTML=`<div class="row"><span class="muted">（空）</span></div>`; invDlg.showModal(); return; }
+  Object.entries(game.inv).forEach(([name,count])=>{
+    const row=document.createElement("div"); row.className="row";
+    const isEquip = !!parseEquipId(name) || name==="坐騎：戰馬";
+    const isConsum = ["小治療藥水","小魔力藥水","煙霧彈"].includes(name);
+    row.innerHTML = `<div><b>${renderEquipName(name)}</b> <span class="tag">× ${count}</span></div>`;
+    const box=document.createElement("div");
+    if(isConsum){ box.appendChild(mkBtn("使用", ()=>useConsum(name))); }
+    else if(isEquip){
+      box.appendChild(mkBtn("裝備", ()=>equipItem(name)));
+      const info=parseEquipId(name);
+      if(info && qualIndex(info.qk)<qualIndex("藍")) box.appendChild(mkBtn("融合×3→升品", ()=>tryFuse(name)));
+      if(info && qualIndex(info.qk)>=qualIndex("藍")) box.appendChild(mkBtn(`強化（${Math.round(enhChance(info.plus)*100)}%）`, ()=>tryEnhance(name)));
+    }
+    box.appendChild(mkBtn("賣 -1", ()=>sellOne(name)));
+    box.appendChild(mkBtn("全賣", ()=>sellAll(name)));
+    row.appendChild(box); list.appendChild(row);
+  });
+  invDlg.showModal();
+}
+function useConsum(n){
+  if(!hasItem(n,1)) return;
+  if(n==="小治療藥水"){ const v=rnd(10,14); game.player.hp=clamp(game.player.hp+v,0,game.player.maxhp); say(`回復 ${v} HP。`); }
+  if(n==="小魔力藥水"){ const v=rnd(5,8);   game.player.mp=clamp(game.player.mp+v,0,game.player.maxmp); say(`回復 ${v} MP。`); }
+  if(n==="煙霧彈"){ if(!game.state.inBattle){ say("沒有敵人。"); decItem(n,1); render(); openInv(); return; }
+    say("你丟出煙霧彈，脫離戰鬥。"); game.state.inBattle=false; game.state.enemy=null; $("#runBtn").disabled=true;
+  }
+  decItem(n,1); render(); openInv();
+}
+function equipItem(id){
+  // Mount：直接裝備
+  if(id==="坐騎：戰馬"){
+    game.player.equip.mount="坐騎：戰馬";
+    decItem(id,1);
+    say("你裝備了坐騎：戰馬（探索拾金 +5G）。");
+    render(); openInv(); return;
+  }
+  const parsed = parseEquipId(id); if(!parsed) return say("不能裝備。");
+  const baseMeta = BASE_EQUIP[parsed.base];
+  if(baseMeta?.slot==="weapon" && !canEquipWeaponByClass(parsed.base)){
+    return say("你的職業不能裝備此類武器。");
+  }
+  const st=equipStatsFromId(id); if(!st) return say("不能裝備。");
+  const slot=st.slot; const p=game.player;
+  if(p.equip[slot]){ const old=p.equip[slot]; const stOld=equipStatsFromId(old); if(stOld) applyMods(p, stOld.mods, -1); addItem(old,1); say(`卸下 ${renderEquipName(old)}`); }
+  p.equip[slot]=id; applyMods(p, st.mods, +1); decItem(id,1); say(`裝備 ${renderEquipName(id)}`); render(); openInv();
+}
+function sellOne(name){ if(!hasItem(name,1)) return; const price=sellPrice(name); decItem(name,1); game.player.gold+=price; say(`賣出 ${renderEquipName(name)} +${price}G`); render(); openInv(); }
+function sellAll(name){ const cnt=game.inv[name]||0; if(!cnt) return; const price=sellPrice(name)*cnt; decItem(name,cnt); game.player.gold+=price; say(`賣出 ${renderEquipName(name)} ×${cnt} +${price}G`); render(); openInv(); }
+
+// ====== 裝備欄可點擊：強化／顯示花費 ======
+$("#slot-weapon").onclick = ()=>slotEnhancePrompt("weapon");
+$("#slot-armor").onclick  = ()=>slotEnhancePrompt("armor");
+$("#slot-acc").onclick    = ()=>slotEnhancePrompt("acc");
+$("#slot-mount").onclick  = ()=>{
+  const id=game.player.equip.mount;
+  if(!id) return say("尚未裝備坐騎。");
+  say("坐騎無法強化；效果：探索拾金 +5G。");
+};
+function slotEnhancePrompt(slot){
+  const id=game.player.equip[slot];
+  if(!id) return say("沒有裝備。");
+  const info=parseEquipId(id);
+  if(!info) return say("此裝備不可強化。"); // 坐騎 or 非品質制
+  const qIdx=qualIndex(info.qk);
+  const cost=enhanceCost(id);
+  const chance=Math.round(enhChance(info.plus)*100);
+  if(qIdx<qualIndex("藍")) return say(`【${renderEquipName(id)}】目前品質不足（需藍品以上）`);
+  if(confirm(`強化 ${info.base}[${info.qk}]${info.plus?`+${info.plus}`:""}\n費用：${cost}G｜成功率：${chance}%\n（成功 +1；失敗 -1；+10 進階品質）`)){
+    tryEnhance(id);
+  }
+}
+
+// ====== 戰鬥 ======
+function startBattle(){
+  if(game.state.inBattle) return say("你已在戰鬥中。");
+  const z=currentZone(); if(z.bossOnly){ say(`👑 你踏入 <b>${z.name}</b>。`); }
+  const e=makeEnemy(); game.state.enemy=e; game.state.inBattle=true; $("#runBtn").disabled=!!z.bossOnly;
+  say(`遭遇 <b>${e.name}</b>（Lv.${e.lvl} HP${e.hp} 攻${e.atk} 防${e.def}）。`); render();
+}
+function playerAttack(){
+  if(!game.state.inBattle) return say("沒有敵人。");
+  const p=game.player, e=game.state.enemy;
+  const dmg=Math.max(1,rnd(p.atk-2,p.atk+2)-e.def);
+  e.hp=clamp(e.hp-dmg,0,e.maxhp); say(`你攻擊造成 <span class="hp">-${dmg}</span>。`);
+  if(e.hp<=0) return winBattle();
+  enemyTurn();
+}
+function castSkill(){
+  if(!game.state.inBattle) return say("沒有敵人。");
+  const p=game.player, e=game.state.enemy, id=p.activeSkill||"armorbreak", sk=SKILL[id];
+  if(!sk) return say("沒有可用技能。");
+  if(p.mp<sk.mp) { say("MP 不足。"); return enemyTurn(); }
+  p.mp-=sk.mp; sk.use(p,e); render();
+  if(e.hp<=0) return winBattle();
+  enemyTurn();
+}
+function enemyTurn(){
+  const p=game.player, e=game.state.enemy;
+  const dmg=Math.max(1,rnd(e.atk-1,e.atk+3)-p.def);
+  p.hp=clamp(p.hp-dmg,0,p.maxhp); say(`<b>${e.name}</b> 造成 <span class="bad">-${dmg}</span>。`);
+  if(p.hp<=0) return loseBattle();
+  render();
+}
+function winBattle(){
+  const e=game.state.enemy; game.state.inBattle=false; game.state.enemy=null; $("#runBtn").disabled=true;
+  const mountBonus = game.player.equip.mount==="坐騎：戰馬" ? 5 : 0;
+  const g=e.gold + mountBonus;
+  game.player.gold+=g; gainExp(e.exp);
+  say(`🏆 勝利！+${g}G、+${e.exp} EXP`);
+  (e.drops||[]).forEach(d=>{ if(Math.random()< (d.rate ?? 1)){ addItem(d.item,1); say(`🧷 掉落：${renderEquipName(d.item)}`); }});
+  onKill();
+}
+function loseBattle(){
+  game.state.inBattle=false; game.state.enemy=null; $("#runBtn").disabled=true;
+  const lost = Math.min(30, Math.round(game.player.gold*0.1));
+  game.player.gold -= lost; game.player.hp=Math.max(10,Math.round(game.player.maxhp*0.5)); game.player.mp=Math.max(5,Math.round(game.player.maxmp*0.5));
+  say(`💀 你倒下了，損失 ${lost}G，回到鎮上。`);
+  render();
+}
+function tryRun(){
+  const z=currentZone(); if(z.bossOnly) return say("Boss地圖無法逃跑。");
+  if(!game.state.inBattle) return say("沒有敵人。");
+  if(Math.random()<0.6){ say("你成功脫離戰鬥。"); game.state.inBattle=false; game.state.enemy=null; $("#runBtn").disabled=true; render(); }
+  else{ say("逃跑失敗！"); enemyTurn(); }
+}
+
+// ====== 地圖 / 技能 / 任務 視窗 ======
+function openMap(){
+  const list=$("#zoneList"); list.innerHTML="";
+  ZONES.forEach(z=>{
+    const locked = !zoneUnlocked(z);
+    const rangeTxt = z.bossOnly?"Boss專圖": z.range?`建議 Lv.${z.range[0]}-${z.range[1]}`:"";
+    const row=document.createElement("div"); row.className="row";
+    row.innerHTML=`<div><b>${z.name}</b> <span class="tag">需求 Lv.${z.minLv}｜倍率 ×${z.zoneMul.toFixed(2)}｜${rangeTxt}</span></div>`;
+    const b=mkBtn( locked? "未開放" : (game.state.zone===z.id?"目前": "前往"), ()=>{
+      if(locked) return; game.state.zone=z.id; say(`🧭 前往 <b>${z.name}</b>。`); render(); mapDlg.close();
+    });
+    if(locked) b.disabled=true;
+    row.appendChild(b); list.appendChild(row);
+  });
+  mapDlg.showModal();
+}
+function openSkill(){
+  const list=$("#skillList"); list.innerHTML="";
+  const p=game.player;
+  (p.learned||[]).forEach(id=>{
+    const sk=SKILL[id];
+    const row=document.createElement("div"); row.className="row";
+    row.innerHTML=`<div><b>${sk.name}</b> <span class="tag">【${sk.type}】 MP${sk.mp||0}</span></div>`;
+    if(sk.type!=="被動"){
+      const b=mkBtn(p.activeSkill===id?"當前✓":"設為當前", ()=>{ p.activeSkill=id; say(`當前技能 → <b>${sk.name}</b>`); openSkill(); });
+      row.appendChild(b);
+    }else{
+      const b=document.createElement("span"); b.className="muted"; b.textContent="被動啟用中"; row.appendChild(b);
+    }
+    list.appendChild(row);
+  });
+  skillDlg.showModal();
+}
+function openQuest(){
+  const list=$("#questList"); list.innerHTML="";
+  game.quests.forEach(q=>{
+    const row=document.createElement("div"); row.className="row";
+    row.innerHTML=`<div><b>${q.name}</b> <span class="tag">（${q.state==="done"?"完成":q.state==="active"?"進行中":"未解鎖"}）</span><br><span class="muted">${q.desc}</span><br><span class="tag">進度：${q.done}/${q.need}</span></div>`;
+    list.appendChild(row);
+  });
+  questDlg.showModal();
+}
+
+// ====== 行動 ======
+function explore(){
+  if(game.state.inBattle) return say("戰鬥中無法探索。");
+  const z=currentZone();
+  if(z.bossOnly){ say("Boss專圖無事件，請直接『戰鬥』。"); return; }
+  const r=rnd(1,100);
+  if(r<=62) startBattle();
+  else if(r<=88){ const bonus = game.player.equip.mount==="坐騎：戰馬"?5:0; const g=rnd(4,12)+bonus; game.player.gold+=g; say(`你在 ${z.name} 找到錢袋：+${g}G`); render(); }
+  else{ const pot = Math.random()<0.5?"小治療藥水":"小魔力藥水"; addItem(pot,1); say(`你在 ${z.name} 撿到 ${pot}`); render(); }
+}
+function rest(){ if(game.state.inBattle) return say("戰鬥中不能休息。"); const h=rnd(6,10), m=rnd(3,6); game.player.hp=clamp(game.player.hp+h,0,game.player.maxhp); game.player.mp=clamp(game.player.mp+m,0,game.player.maxmp); say(`回復 ${h}HP / ${m}MP`); render(); }
+
+// ====== 初始化 ======
+function autosave(){ try{ localStorage.setItem(LKEY, JSON.stringify(game)); }catch(e){} }
+function load(){ try{ const raw=localStorage.getItem(LKEY); if(raw){ const g=JSON.parse(raw); Object.assign(game,g); } }catch(e){} }
+
+load();
+if(!Object.keys(game.inv).length){
+  addItem(makeEquipId("木劍","白"),1);
+  addItem("小治療藥水",3); addItem("小魔力藥水",2); addItem("煙霧彈",1);
+}
+say("更新：裝備欄可看素質並點擊強化；新增坐騎欄（戰馬）；每張地圖有獨立強度倍率；怪物隨等級與轉生週目成長；職業與武器互鎖（劍/杖/匕首）。");
+render();
+
+// 綁定
+$("#exploreBtn").onclick=explore;
+$("#restBtn").onclick=rest;
+$("#battleBtn").onclick=startBattle;
+$("#attackBtn").onclick=playerAttack;
+$("#castBtn").onclick=castSkill;
+$("#invBtn").onclick=openInv;
+$("#runBtn").onclick=tryRun;
+$("#mapBtn").onclick=openMap;
+$("#shopBtn").onclick=openShop;
+$("#skillBtn").onclick=openSkill;
+$("#questBtn").onclick=openQuest;
+$("#classBtn").onclick=openClass;
+$("#saveBtn").onclick=autosave;
+$("#resetBtn").onclick=()=>{ if(confirm("清除存檔？")){ localStorage.removeItem(LKEY); location.reload(); } };
+$("#restockBtn").onclick=restockShop;
+
+document.addEventListener("keydown",(e)=>{
+  const k=e.key.toLowerCase();
+  if(k==="1") $("#exploreBtn").click();
+  if(k==="2") $("#restBtn").click();
+  if(k==="3") $("#battleBtn").click();
+  if(k==="4") $("#attackBtn").click();
+  if(k==="5") $("#castBtn").click();
+  if(k==="6") $("#invBtn").click();
+  if(k==="x") $("#runBtn").click();
+  if(k==="m") $("#mapBtn").click();
+  if(k==="o") $("#shopBtn").click();
+  if(k==="q") $("#questBtn").click();
+  if(k==="c") $("#classBtn").click();
+});
+})();
+</script>
+</body>
+</html>
