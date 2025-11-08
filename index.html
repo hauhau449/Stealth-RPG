@@ -568,9 +568,9 @@ dialog{
   /* ========= 狀態 ========= */
   const game = {
     player:{
-      name:"你", job:"Novice", tier:0, lvl:1, exp:0,
-      hp:32, mp:12, atk:6, def:2, maxhp:32, maxmp:12,
-      gold:200, afk:false, lastTick:0,
+      name:"你", job:"Novice", tier:0, lvl:30, exp:0,
+      hp:32, mp:12, atk:50, def:2, maxhp:32, maxmp:12,
+      gold:2000, afk:false, lastTick:0,
       equip:{weapon:null,armor:null,acc:null,mount:null},
       learned:{"armorbreak":1}, activeSkill:"armorbreak",
       skillQual:{},
@@ -1534,7 +1534,7 @@ if (qualBoost[next]) {
 
   // ③ 設定/疊加轉職獎勵（可自行調整）
   //    建議：第一段轉職就送這個倍率；之後每次轉職都「疊加」。
-  const ADD = { hp:0.20, mp:0.10, atk:0.05, def:0.05 }; // ← 想調整就改這裡
+  const ADD = { hp:1.50, mp:1.50, atk:2, def:0.05 }; // ← 想調整就改這裡
   p.jobBonus = p.jobBonus || {hp:0, mp:0, atk:0, def:0};
   p.jobBonus.hp  += ADD.hp;
   p.jobBonus.mp  += ADD.mp;
@@ -1771,6 +1771,7 @@ if (qualBoost[next]) {
 </script>
 </body>
 </html>
+
 
 
 
