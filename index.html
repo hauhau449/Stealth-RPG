@@ -497,6 +497,9 @@ dialog{
     "大治療藥水":{type:"consum",desc:"回復 30~40 HP", use:(p)=>{ const v=rnd(30,40); p.hp=clamp(p.hp+v,0,p.maxhp); say(`你使用 <b>大治療藥水</b>，回復 <b>${v} HP</b>。`);} }, // [NEW]
     "特級治療藥水":{type:"consum",desc:"回復 50% HP", use:(p)=>{ const v=Math.ceil(p.maxhp*0.5); p.hp=clamp(p.hp+v,0,p.maxhp); say(`你使用 <b>特級治療藥水</b>，回復 <b>${v} HP</b>。`);} }, // [NEW]
     "小魔力藥水":{type:"consum",desc:"回復 5~8 MP",  use:(p)=>{ const v=rnd(5,8); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>小魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
+    "中魔力藥水":{type:"consum",desc:"回復 10~14 MP", use:(p)=>{ const v=rnd(10,14); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>中魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
+    "大魔力藥水":{type:"consum",desc:"回復 16~22 MP", use:(p)=>{ const v=rnd(16,22); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>大魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
+    "特級魔力藥水":{type:"consum",desc:"回復 50% MP", use:(p)=>{ const v=Math.ceil(p.maxmp*0.5); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>特級魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
     "煙霧彈":{type:"consum",desc:"戰鬥中嘗試脫離",  use:(p,e,inBattle)=>{ if(inBattle){ say("你投擲了煙霧彈！你逃離了戰鬥。"); endBattle(false); } else { say("你在空地放了煙……好像有點招搖。"); } }},
     "經驗加倍捲":{type:"consum",desc:"5 日內經驗 +100%，可疊加", use:(p)=>{ addXpBuff(5); say(`📜 使用 <b>經驗加倍捲</b>：5 日加倍生效（目前層數 ${activeXpBuffs()}）。`);} }, // [NEW]
     "技能書：活力":{type:"book", skill:"vitality"},
@@ -1799,6 +1802,7 @@ if (qualBoost[next]) {
 </script>
 </body>
 </html>
+
 
 
 
