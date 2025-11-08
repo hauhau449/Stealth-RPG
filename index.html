@@ -70,6 +70,113 @@
   .q-white{color:var(--q-white)} .q-green{color:var(--q-green)} .q-blue{color:var(--q-blue)}
   .q-yellow{color:var(--q-yellow)} .q-orange{color:var(--q-orange)} .q-arti{color:var(--q-arti)}
   .arti-name{color:var(--q-arti);font-weight:700}
+
+  /* =============================== */
+  /* [ADD] 對話框 polyfill 外觀與保底樣式 */
+  /* =============================== */
+  .modal-backdrop{ position:fixed; inset:0; background:#0008; z-index:9998; }
+  dialog{ z-index:9999; }
+  dialog[open]{ display:block; }
+  body.has-modal{ overflow:hidden; }
+/* =============================== */
+/* [OPT] 高對比可讀性強化（深色主題） */
+/* 只做覆寫，不改動原有變數與結構    */
+/* =============================== */
+
+/* 1) 全域：微調前景與提示色對比 */
+:root{
+  --fg-strong: #f5f7fb;            /* 主要文字更亮 */
+  --muted-strong: #b6c2d2;         /* 次要文字提高亮度 */
+  --gold-strong: #ffd24a;          /* 金幣更亮、偏暖 */
+  --accent-strong: #38bdf8;        /* 分頁/高亮外框 */
+}
+body{ color: var(--fg-strong); }
+.hint, .tag{ color: var(--muted-strong); }
+
+/* 2) 按鈕：加大對比與可聚焦樣式 */
+.btn{
+  background: #253042;             /* 比原本更亮一階 */
+  border-color: #0008;
+  color: var(--fg-strong);
+}
+.btn:hover{ background:#324155; }
+.btn:focus-visible{
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+/* 3) 商店分頁：強化選中與未選中對比 */
+.tab{
+  background:#1b2330;
+  border-color:#3b4252;
+  color:#e8edf6;
+}
+.tab:hover{ background:#243044; }
+.tab.active{
+  background:#0f172a;              /* 更深色作對比 */
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 2px #0b0f16, 0 0 0 4px rgba(56,189,248,.6);
+  color:#ffffff;
+}
+
+/* 4) 金幣顯示：更亮＋輕微發光 */
+.gold{ color: var(--gold-strong); }
+.gold b{
+  color: var(--gold-strong);
+  text-shadow: 0 0 6px rgba(255,210,74,.35);
+}
+
+/* 5) 列表與卡片：內容文字亮一點 */
+.card h3{ color: var(--muted-strong); }
+.list{
+  border-color:#475569;
+  background: rgba(2,6,23,.35);    /* 極淺底，讓內容浮起來 */
+}
+.list .row{ border-bottom-color:#425166; }
+
+/* 6) 狀態膠囊與裝備槽：邊界更清楚 */
+.pill{
+  background:#1a2230;
+  border-color:#2e3a4a;
+  color:#e9eef7;
+}
+.slot{
+  background:#121a26;
+  border-color:#4b5563;
+}
+
+/* 7) 對話框：提升對比與陰影 */
+dialog{
+  background:#0f1522;
+  color:var(--fg-strong);
+  box-shadow: 0 16px 40px rgba(0,0,0,.55);
+}
+
+/* 8) 鍵盤焦點可見性（無滑鼠操作時） */
+:focus-visible{
+  outline:2px solid var(--accent-strong);
+  outline-offset:2px;
+}
+
+/* 9) 文字強化：小字更清楚 */
+.tag, .hint, .muted{
+  color: var(--muted-strong);
+}
+
+/* 10) 商店價格/庫存行：數字更醒目 */
+#shopDlg .list .row .tag{ color:#c8d3e0; }
+#shopGold{ color: var(--gold-strong); }
+
+/* 11) 分隔線更可見但不刺眼 */
+.sep{ background: #334155; }
+
+/* 12) 滾動區背景更深、字體更亮 */
+.log{
+  background:#0a0f19;
+  color:#eaf2ff;
+  border-color:#415269;
+}
+
 </style>
 </head>
 <body>
@@ -84,6 +191,7 @@
       <button class="btn small" id="classBtn" disabled>🏷️ 轉職</button>
       <button class="btn small" id="afkBtn">🤖 掛機：關</button>
       <button class="btn small" id="helpBtn">❓ 說明</button>
+      <button class="btn small" id="introBtn">🎬 介紹</button>
       <button class="btn small" id="stealthBtn">🕶️ 偽裝 <span class="hint">(Esc)</span></button>
       <button class="btn small" id="saveBtn">💾 存檔</button>
       <button class="btn small" id="resetBtn">🗑️ 重開</button>
@@ -120,7 +228,7 @@
         <div class="stat">等級：<span id="eLvl" class="lvl">—</span></div>
         <div class="stat">攻擊：<span id="eAtk" class="atk">—</span></div>
         <div class="stat">防禦：<span id="eDef" class="def">—</span></div>
-        <div class="stat">HP
+        <div class="="stat">HP
           <div class="bar hp"><span id="eHpBar" style="width:0%"></span></div>
           <span id="eHpTxt" class="hp">0/0</span>
         </div>
@@ -150,7 +258,7 @@
     <h3>Q3 Efficiency Summary</h3>
     <table>
       <thead><tr><th>Dept</th><th>KPI</th><th>Target</th><th>Actual</th><th>Δ</th></tr></thead>
-      <tbody id="fakeRows"></tbody>
+    <tbody id="fakeRows"></tbody>
     </table>
     <p class="hint">（按 <span class="kbd">Esc</span> 回到儀表板）</p>
   </div>
@@ -262,6 +370,71 @@
   </div>
 </dialog>
 
+<!-- 開場介紹 -->
+<dialog id="introDlg">
+  <div class="dlg">
+    <h4>🎬 開場介紹</h4>
+    <div class="list" style="padding:10px">
+      <p>歡迎來到 <b>Stealth RPG KPI</b>！</p>
+      <p>探索地圖、挑戰 Boss、強化裝備、合成藥水，還能轉職四段一路到 200 等。</p>
+      <p>本版新增：<br>
+      • 藥水 2 合 1（小→中→大→特級，特級回 50%）<br>
+      • 經驗加倍捲（100G，5 日，可疊加）<br>
+      • 強化成功率與失敗降階機率調整<br>
+      • 藍→黃、黃→橘時各追加 1 條隨機詞條</p>
+    </div>
+    <div class="row" style="justify-content:flex-end;margin-top:8px">
+      <label class="hint" style="margin-right:auto;display:flex;gap:6px;align-items:center">
+        <input type="checkbox" id="introDontShow"> 不再顯示
+      </label>
+      <button class="btn small" id="introStartBtn">開始遊戲</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- =============================== -->
+<!-- [ADD] 對話框 polyfill（需在主腳本前載入，以支援開場對話框） -->
+<!-- =============================== -->
+<script>
+(function dialogPolyfill(){
+  function attachBackdrop(dlg){
+    if(dlg._bd) return;
+    const bd=document.createElement('div');
+    bd.className='modal-backdrop';
+    bd.addEventListener('click', ()=> dlg.close());
+    document.body.appendChild(bd);
+    document.body.classList.add('has-modal');
+    dlg._bd=bd;
+  }
+  function detachBackdrop(dlg){
+    if(!dlg._bd) return;
+    dlg._bd.remove(); dlg._bd=null;
+    const anyOpen=[...document.querySelectorAll('dialog')].some(d=>d.hasAttribute('open'));
+    if(!anyOpen) document.body.classList.remove('has-modal');
+  }
+  function ensure(){
+    document.querySelectorAll('dialog').forEach(d=>{
+      if(typeof d.showModal!=='function'){
+        d.showModal=function(){ this.setAttribute('open',''); attachBackdrop(this); };
+      }
+      if(typeof d.close!=='function'){
+        d.close=function(){ this.removeAttribute('open'); detachBackdrop(this); };
+      }else{
+        const _close=d.close.bind(d);
+        d.close=function(){ try{ _close(); }catch(_){ this.removeAttribute('open'); } detachBackdrop(this); };
+      }
+    });
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', ensure);
+  }else{
+    ensure();
+  }
+  const mo=new MutationObserver(()=>ensure());
+  mo.observe(document.documentElement,{subtree:true,childList:true});
+})();
+</script>
+
 <script>
 (function(){
   const $=s=>document.querySelector(s), LKEY="stealth_rpg_full_v4";
@@ -289,39 +462,43 @@
   const SKILL={
     armorbreak:{ id:"armorbreak", name:"破甲斬", type:"主動", baseMp:3, desc:"降低目標防禦後造成傷害。",
       use:(p,e,lv)=>{ const mp=3; if(p.mp<mp) return say("魔力不足。"), false;
-        p.mp-=mp; const scale=1+lv*0.04; const dmg=Math.max(2, rnd(p.atk+2,p.atk+6)-Math.floor(e.def*0.6)); const out=Math.floor(dmg*scale);
-        e.hp=clamp(e.hp-out,0,e.maxhp); say(`你施放 <b>破甲斬</b> Lv.${lv}，造成 <span class="hp">-${out}</span>！`); return true; } },
+        p.mp-=mp; const scale=1+lv*0.04; const effDef=effectiveEnemyDef(e,p); const dmg=Math.max(2, rnd(p.atk+2,p.atk+6)-Math.floor(effDef*0.6)); const out=Math.floor(critMaybe(p,dmg)*scale);
+        e.hp=clamp(e.hp-out,0,e.maxhp); affixOnHit(p,e,out); say(`你施放 <b>破甲斬</b> Lv.${lv}，造成 <span class="hp">-${out}</span>！`); return true; } },
     smash:{ id:"smash", name:"猛擊", type:"主動", baseMp:4, desc:"重擊造成高傷害。",
       use:(p,e,lv)=>{ const mp=4; if(p.mp<mp) return say("魔力不足。"), false;
-        p.mp-=mp; const scale=1+lv*0.05; const out=Math.max(3, Math.floor((rnd(p.atk+4,p.atk+9)-e.def)*scale));
-        e.hp=clamp(e.hp-out,0,e.maxhp); say(`你使出 <b>猛擊</b> Lv.${lv}，<span class="hp">-${out}</span>！`); return true; } },
+        p.mp-=mp; const scale=1+lv*0.05; const effDef=effectiveEnemyDef(e,p); const base=Math.max(3, Math.floor((rnd(p.atk+4,p.atk+9)-effDef))); const out=Math.floor(critMaybe(p,base)*scale);
+        e.hp=clamp(e.hp-out,0,e.maxhp); affixOnHit(p,e,out); tryCombo(p,e); say(`你使出 <b>猛擊</b> Lv.${lv}，<span class="hp">-${out}</span>！`); return true; } },
     fireball:{ id:"fireball", name:"火球術", type:"主動", baseMp:5, desc:"火焰無視多數防禦。",
       use:(p,e,lv)=>{ const mp=5; if(p.mp<mp) return say("魔力不足。"), false;
-        p.mp-=mp; const scale=1+lv*0.05; const ignore=Math.floor(e.def*0.7); const out=Math.max(4, Math.floor((rnd(p.atk+6,p.atk+12)-ignore)*scale));
-        e.hp=clamp(e.hp-out,0,e.maxhp); say(`你施放 <b>火球術</b> Lv.${lv}！<span class="hp">-${out}</span>。`); return true; } },
+        p.mp-=mp; const scale=1+lv*0.05; const ignore=Math.floor(e.def*0.7); const base=Math.max(4, Math.floor((rnd(p.atk+6,p.atk+12)-ignore))); const out=Math.floor(critMaybe(p,base)*scale);
+        e.hp=clamp(e.hp-out,0,e.maxhp); affixOnHit(p,e,out); tryCombo(p,e); say(`你施放 <b>火球術</b> Lv.${lv}！<span class="hp">-${out}</span>。`); return true; } },
     flurry:{ id:"flurry", name:"連擊", type:"主動", baseMp:4, desc:"2~3 次連段。",
       use:(p,e,lv)=>{ const mp=4; if(p.mp<mp) return say("魔力不足。"), false;
-        p.mp-=mp; let hits=rnd(2,3), tot=0, scale=1+lv*0.035; for(let i=0;i<hits;i++){ const d=Math.max(1,rnd(p.atk-1,p.atk+3)-Math.floor(e.def*0.8)); tot+=d; }
-        tot=Math.floor(tot*scale); e.hp=clamp(e.hp-tot,0,e.maxhp); say(`你施展 <b>連擊</b> Lv.${lv}，${hits} 段合計 <span class="hp">-${tot}</span>！`); return true; } },
+        p.mp-=mp; let hits=rnd(2,3), tot=0, scale=1+lv*0.035; for(let i=0;i<hits;i++){ const effDef=effectiveEnemyDef(e,p); const d=Math.max(1,rnd(p.atk-1,p.atk+3)-Math.floor(effDef*0.8)); tot+=critMaybe(p,d); }
+        tot=Math.floor(tot*scale); e.hp=clamp(e.hp-tot,0,e.maxhp); affixOnHit(p,e,tot); tryCombo(p,e); say(`你施展 <b>連擊</b> Lv.${lv}，${hits} 段合計 <span class="hp">-${tot}</span>！`); return true; } },
     smite:{ id:"smite", name:"聖光制裁", type:"主動", baseMp:6, desc:"聖光重擊，對黑暗系額外傷害。",
       use:(p,e,lv)=>{ const mp=6; if(p.mp<mp) return say("魔力不足。"), false;
-        p.mp-=mp; const scale=1+lv*0.06; let out=Math.max(5, Math.floor((p.atk+8 - Math.floor(e.def*0.5))*scale)); if(e.tag==="dark") out=Math.floor(out*1.25);
-        e.hp=clamp(e.hp-out,0,e.maxhp); say(`你釋放 <b>聖光制裁</b> Lv.${lv}！<span class="hp">-${out}</span>。`); return true; } },
+        p.mp-=mp; const scale=1+lv*0.06; const effDef=effectiveEnemyDef(e,p); let out=Math.max(5, Math.floor((p.atk+8 - Math.floor(effDef*0.5))*scale)); if(e.tag==="dark") out=Math.floor(out*1.25);
+        out=critMaybe(p,out); e.hp=clamp(e.hp-out,0,e.maxhp); affixOnHit(p,e,out); tryCombo(p,e); say(`你釋放 <b>聖光制裁</b> Lv.${lv}！<span class="hp">-${out}</span>。`); return true; } },
     vitality:{ id:"vitality", name:"活力", type:"被動", desc:"最大HP +10 / 等",
       passive:(p,lv)=>{ p.maxhp+=10*lv; p.hp=Math.min(p.hp+10*lv,p.maxhp);} },
     focus:{ id:"focus", name:"專注", type:"被動", desc:"最大MP +6 / 等",
       passive:(p,lv)=>{ p.maxmp+=6*lv; p.mp=Math.min(p.mp+6*lv,p.maxmp);} },
     omnislash:{ id:"omnislash", name:"奧義：萬斬", type:"奧義", baseMp:8, desc:"爆發 4~6 段大傷。",
       use:(p,e,lv)=>{ const mp=8; if(p.mp<mp) return say("魔力不足。"), false;
-        p.mp-=mp; let h=rnd(4,6), tot=0, scale=1+lv*0.04; for(let i=0;i<h;i++){ const d=Math.max(2,rnd(p.atk+3,p.atk+8)-Math.floor(e.def*0.6)); tot+=d; }
-        tot=Math.floor(tot*scale); e.hp=clamp(e.hp-tot,0,e.maxhp); say(`你使出 <b>奧義·萬斬</b> Lv.${lv}！合計 <span class="hp">-${tot}</span>！`); return true; } }
+        p.mp-=mp; let h=rnd(4,6), tot=0, scale=1+lv*0.04; for(let i=0;i<h;i++){ const effDef=effectiveEnemyDef(e,p); const d=Math.max(2,rnd(p.atk+3,p.atk+8)-Math.floor(effDef*0.6)); tot+=critMaybe(p,d); }
+        tot=Math.floor(tot*scale); e.hp=clamp(e.hp-tot,0,e.maxhp); affixOnHit(p,e,tot); tryCombo(p,e); say(`你使出 <b>奧義·萬斬</b> Lv.${lv}！合計 <span class="hp">-${tot}</span>！`); return true; } }
   };
 
-  // 物品 / 裝備 / 坐騎
+  // 物品 / 裝備 / 坐騎 / 加倍捲
   const itemDefs={
     "小治療藥水":{type:"consum",desc:"回復 10~14 HP", use:(p)=>{ const v=rnd(10,14); p.hp=clamp(p.hp+v,0,p.maxhp); say(`你使用 <b>小治療藥水</b>，回復 <b>${v} HP</b>。`);} },
+    "中治療藥水":{type:"consum",desc:"回復 18~24 HP", use:(p)=>{ const v=rnd(18,24); p.hp=clamp(p.hp+v,0,p.maxhp); say(`你使用 <b>中治療藥水</b>，回復 <b>${v} HP</b>。`);} }, // [NEW]
+    "大治療藥水":{type:"consum",desc:"回復 30~40 HP", use:(p)=>{ const v=rnd(30,40); p.hp=clamp(p.hp+v,0,p.maxhp); say(`你使用 <b>大治療藥水</b>，回復 <b>${v} HP</b>。`);} }, // [NEW]
+    "特級治療藥水":{type:"consum",desc:"回復 50% HP", use:(p)=>{ const v=Math.ceil(p.maxhp*0.5); p.hp=clamp(p.hp+v,0,p.maxhp); say(`你使用 <b>特級治療藥水</b>，回復 <b>${v} HP</b>。`);} }, // [NEW]
     "小魔力藥水":{type:"consum",desc:"回復 5~8 MP",  use:(p)=>{ const v=rnd(5,8); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>小魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
     "煙霧彈":{type:"consum",desc:"戰鬥中嘗試脫離",  use:(p,e,inBattle)=>{ if(inBattle){ say("你投擲了煙霧彈！你逃離了戰鬥。"); endBattle(false); } else { say("你在空地放了煙……好像有點招搖。"); } }},
+    "經驗加倍捲":{type:"consum",desc:"5 日內經驗 +100%，可疊加", use:(p)=>{ addXpBuff(5); say(`📜 使用 <b>經驗加倍捲</b>：5 日加倍生效（目前層數 ${activeXpBuffs()}）。`);} }, // [NEW]
     "技能書：活力":{type:"book", skill:"vitality"},
     "技能書：專注":{type:"book", skill:"focus"},
     "技能書：火球術":{type:"book", skill:"fireball"},
@@ -348,6 +525,7 @@
     {name:"小治療藥水",type:"consum",price:8},
     {name:"小魔力藥水",type:"consum",price:10},
     {name:"煙霧彈",type:"consum",price:15},
+    {name:"經驗加倍捲",type:"consum",price:100}, // [NEW]
     {name:"木劍",type:"equip",price:20},
     {name:"皮甲",type:"equip",price:22},
     {name:"法杖",type:"equip",price:26},
@@ -400,19 +578,44 @@
     },
     inv:{ "小治療藥水":3, "小魔力藥水":2, "煙霧彈":1 },
     state:{ inBattle:false, enemy:null, kills:{}, zoneId:"z-01", day:1 },
-    quests:[], shop:{stock:[]}
+    quests:[], shop:{stock:[]},
+    buffs:{ xpLayers:[] } // 多層加倍，每層為剩餘日數
   };
 
   /* ========= 工具 ========= */
   const rnd=(n,m)=>Math.floor(Math.random()*(m-n+1))+n;
   const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
   const say=html=>{ const p=document.createElement("p"); p.innerHTML=html; log.appendChild(p); log.scrollTop=log.scrollHeight; autosave(); };
+
+  /* =============================== */
+  /* [ADD] 全域錯誤寫入冒險日誌（排錯用） */
+  /* =============================== */
+  window.addEventListener('error', e=>{
+    try{ const p=document.createElement('p'); p.innerHTML=`⚠️ <b>腳本錯誤</b>：${e.message}`; log.appendChild(p); log.scrollTop=log.scrollHeight; }catch(_){}
+  });
+
   const colorQual=(q)=> QUAL_CLASS[QUALITY_ORDER[q]||0]||"";
   const fmtQual=(q,txt)=>`<span class="${colorQual(q)}">${txt}</span>`;
   const fmtItem=(name,qual)=> qual ? fmtQual(qual,qualName(name,qual)) : name;
   const qualName=(name,qual)=> qual==="神器" ? `[神器☆${name}]` : name;
 
-  function autosave(){ try{ localStorage.setItem(LKEY, JSON.stringify(game)); }catch(e){} }
+  // 裝備詞條
+  const AFFIX_LIB=[
+    {key:"lifesteal", name:"吸血",  desc:"攻擊回復 5~10 HP", min:5, max:10},
+    {key:"poison",    name:"中毒",  desc:"每回合 2~5 DOT（三回合）", min:2, max:5},
+    {key:"crit",      name:"爆擊",  desc:"暴擊率 +5%", min:5, max:5},
+    {key:"combo",     name:"連擊",  desc:"25% 觸發追加打擊", min:25, max:25},
+    {key:"shred",     name:"破甲",  desc:"計算傷害時敵防 -20%", min:20, max:20},
+  ];
+
+  function autosave(){
+    try{
+      // 一併存入裝備／坐騎資料庫，避免重載後顯示 E# 原字串
+      game._eqdb = EQUIP_DB;
+      game._mddb = MOUNT_DB;
+      localStorage.setItem(LKEY, JSON.stringify(game));
+    }catch(e){}
+  }
   function load(){
     try{
       const raw=localStorage.getItem(LKEY);
@@ -423,6 +626,10 @@
         game.state={...game.state, ...(data.state||{})};
         game.quests=data.quests||[];
         game.shop=data.shop||{stock:[]};
+        game.buffs=data.buffs||{xpLayers:[]};
+        // 反序列化 DB
+        Object.assign(EQUIP_DB, data._eqdb||{});
+        Object.assign(MOUNT_DB, data._mddb||{});
         recomputeStats(true);
       } else {
         seedQuests();
@@ -531,7 +738,7 @@
       <div class="stat atk">攻擊：${p.atk}</div>
       <div class="stat def">防禦：${p.def}</div>
       <div class="stat lvl">等級：${p.lvl}（EXP ${p.exp}/${expNeedForLevel(p.lvl)}）</div>
-      <div class="stat gold">金幣：${p.gold}｜職業：${jobName(p.job)}（${p.tier}轉）｜日數：${game.state.day}</div>
+      <div class="stat gold">金幣：${p.gold}｜職業：${jobName(p.job)}（${p.tier}轉）｜日數：${game.state.day}｜經驗加倍層數：${activeXpBuffs()}</div>
     `;
     invBox.innerHTML = Object.keys(game.inv).length
       ? Object.keys(game.inv).slice(0,12).map(k=>`<span class="pill">${displayInvName(k)} × ${game.inv[k]}</span>`).join("")
@@ -541,9 +748,9 @@
   }
   function renderEquipSlots(){
     const show = (slot) => {
-      const name = game.player.equip[slot];
+      const id = game.player.equip[slot];
       const el = $("#equip-"+slot);
-      el.textContent = name ? displayEquipName(name) : (slot==="mount"?"（無）":"（空）");
+      el.textContent = id ? displayEquipName(id) : (slot==="mount"?"（無）":"（空）");
     };
     show("weapon"); show("armor"); show("acc"); show("mount");
   }
@@ -557,14 +764,28 @@
     enemyUI.mpBar.style.width=`${Math.max(0,Math.round(e.mp/e.maxmp*100))}%`;
   }
   function displayInvName(k){
-    if(k.startsWith("E#")){ const inst=getEquipInstance(k); return inst?fmtItem(inst.name,inst.qual)+(inst.plus?` +${inst.plus}`:""):k; }
+    if(k.startsWith("E#")){ const inst=getEquipInstance(k); return inst?fmtItem(inst.name,inst.qual)+(inst.plus?` +${inst.plus}`:"")+affixShort(inst):k; }
     if(k.startsWith("M#")){ const m=getMountInstance(k); return m?m.name:k; }
     return k;
   }
   function displayEquipName(id){
     const inst=getEquipInstance(id); if(!inst) return id;
     const show = inst.qual==="神器" ? `[神器☆${inst.name}]` : inst.name;
-    return `${show}${inst.plus?` +${inst.plus}`:""}`;
+    return `${show}${inst.plus?` +${inst.plus}`:""}${affixShort(inst)}`;
+  }
+  function affixShort(inst){
+    if(!inst||!inst.affix||!inst.affix.length) return "";
+    const tags = inst.affix.map(a=>{
+      const def=AFFIX_LIB.find(x=>x.key===a.key);
+      if(!def) return "";
+      if(a.key==="crit") return "｜爆擊+5%";
+      if(a.key==="combo") return "｜連擊25%";
+      if(a.key==="shred") return "｜破甲20%";
+      if(a.key==="lifesteal") return `｜吸血${a.val}`;
+      if(a.key==="poison") return `｜毒${a.val}`;
+      return "";
+    }).join("");
+    return tags;
   }
   function skillNameWithLv(id){
     const lv = game.player.learned[id]||1;
@@ -605,7 +826,7 @@
     const tierScale = 1 + p.tier*0.15 + Math.max(0, (p.lvl - bandMid))*0.01;
     ["hp","mp","atk","def"].forEach(k=> base[k]=Math.max(1, Math.round(base[k]*dayScale*sc*tierScale)));
     const e = { name: basePick.name, lvl, maxhp:base.hp, hp:base.hp, maxmp:base.mp, mp:base.mp, atk:base.atk, def:base.def,
-      gold:Math.round(rnd(...base.gold)), exp:Math.round(rnd(...base.exp)), drops:base.drops||[], isBoss: !!basePick.isBoss, tag:base.tag||"" };
+      gold:Math.round(rnd(...base.gold)), exp:Math.round(rnd(...base.exp)), drops:base.drops||[], isBoss: !!basePick.isBoss, tag:base.tag||"", dot:0, dotTurns:0 };
     return e;
   }
 
@@ -619,9 +840,13 @@
   function playerAttack(){
     if(!game.state.inBattle){ say("現在沒有在戰鬥。"); return; }
     const p=game.player, e=game.state.enemy;
-    const out=Math.max(1, rnd(p.atk-2,p.atk+2)-e.def);
-    e.hp=clamp(e.hp-out,0,e.maxhp); say(`你進行普通攻擊，造成 <span class="hp">-${out}</span>。`);
+    const effDef=effectiveEnemyDef(e,p);
+    let out=Math.max(1, rnd(p.atk-2,p.atk+2)-effDef);
+    out=critMaybe(p,out);
+    e.hp=clamp(e.hp-out,0,e.maxhp); affixOnHit(p,e,out);
+    say(`你進行普通攻擊，造成 <span class="hp">-${out}</span>。`);
     if(e.hp<=0) return endBattle(true);
+    // 中毒DOT在回合終結時生效
     enemyTurn();
   }
   function useActiveSkill(){
@@ -636,6 +861,11 @@
   }
   function enemyTurn(){
     const p=game.player, e=game.state.enemy;
+    // 毒傷（在敵方回合前結算）
+    if(e.dot && e.dotTurns>0){
+      const d=e.dot; e.hp=clamp(e.hp-d,0,e.maxhp); e.dotTurns--; say(`☠️ <b>${e.name}</b> 受到中毒 <span class="bad">-${d}</span>。`);
+      if(e.hp<=0){ return endBattle(true); }
+    }
     const dmg=Math.max(1, rnd(e.atk-1,e.atk+3)-p.def);
     p.hp=clamp(p.hp-dmg,0,p.maxhp);
     say(`<b>${e.name}</b> 攻擊了你，<span class="bad">-${dmg}</span>。`);
@@ -645,13 +875,15 @@
   function endBattle(victory){
     const e=game.state.enemy; game.state.inBattle=false; game.state.enemy=null; $("#runBtn").disabled=true;
     if(victory){
-      const z=currentZone(); const gold=e.gold, exp=e.exp;
-      game.player.gold+=gold; gainExp(exp);
+      const z=currentZone(); let gold=e.gold, exp=e.exp;
+      const mult = 1 + activeXpBuffs(); // 每層 +100%，=1+層數
+      const finalExp = Math.floor(exp*mult);
+      game.player.gold+=gold; gainExp(finalExp);
       game.state.kills[e.name]=(game.state.kills[e.name]||0)+1;
       updatePassivesOnKill();
       handleDrops(e);
-      say(`🏆 勝利！（${z.name}）獲得 <b>${gold}G</b> 與 <b>${exp} EXP</b>。`);
-      if(Math.random()<0.35){ game.state.day+=1; say(`☀️ 日數推進至 Day ${game.state.day}。`); }
+      say(`🏆 勝利！（${z.name}）獲得 <b>${gold}G</b> 與 <b>${finalExp} EXP</b>（加倍層數 ${activeXpBuffs()}）。`);
+      if(Math.random()<0.35){ advanceDay(1); }
     } else {
       const lostExp=Math.floor(game.player.exp*0.5), lostGold=Math.floor(game.player.gold*0.2);
       game.player.exp=Math.max(0, game.player.exp - lostExp);
@@ -740,13 +972,12 @@
       let extra = "";
       if(meta.type==="equip"){
         const eq=getEquipInstance(name);
-        extra = `｜${fmtQual(eq.qual||"白", eq.qual||"白")}｜ATK ${eq.atk||0} DEF ${eq.def||0} HP ${eq.hp||0} MP ${eq.mp||0}${eq.plus?`｜+${eq.plus}`:""}`;
+        extra = `｜${fmtQual(eq.qual||"白", eq.qual||"白")}｜ATK ${eq.atk||0} DEF ${eq.def||0} HP ${eq.hp||0} MP ${eq.mp||0}${eq.plus?`｜+${eq.plus}`:""}${affixShort(eq)}`;
         right.append(btn("裝備",()=>equipItem(name)));
         // 合成：白→綠→藍（同名 3 件）
         const q=eq.qual||"白";
         if(QUALITY_ORDER[q]<QUALITY_ORDER["藍"]){
           const need=3;
-          // 計算同名同品質總數
           let cnt=0;
           Object.entries(game.inv).forEach(([k,v])=>{
             const e2=getEquipInstance(k);
@@ -758,6 +989,12 @@
         const def=itemDefs[meta.ref]||{};
         extra = `｜${def.desc||""}`;
         right.append(btn("使用",()=>{ useItem(name); renderInventoryList(); }));
+        // 藥水 2 合 1（只對治療藥水鏈）
+        const chain = ["小治療藥水","中治療藥水","大治療藥水","特級治療藥水"];
+        const idx = chain.indexOf(meta.ref);
+        if(idx>=0 && idx<chain.length-1 && (game.inv[name]||0)>=2){
+          right.append(btn("合成→下一級",()=>{ combinePotion(meta.ref); renderInventoryList(); }));
+        }
       }else if(meta.type==="book"){
         const skillId = itemDefs[meta.ref]?.skill;
         const sk=SKILL[skillId]; extra=`｜學習/升級：${sk?sk.name:"未知"}`;
@@ -785,6 +1022,16 @@
     def.use(p, game.state.enemy, game.state.inBattle);
     decInv(key,1); render();
     if(game.state.inBattle) enemyTurn();
+  }
+  function combinePotion(name){
+    // 兩瓶合一（只合治療藥水）
+    const chain = ["小治療藥水","中治療藥水","大治療藥水","特級治療藥水"];
+    const idx = chain.indexOf(name);
+    if(idx<0 || idx>=chain.length-1) return;
+    if((game.inv[name]||0) < 2) return say("需要 2 瓶同級藥水。");
+    decInv(name,2);
+    addInv(chain[idx+1],1);
+    say(`⚗️ 合成成功：<b>${name}</b> ×2 → <b>${chain[idx+1]}</b> ×1`);
   }
   function useBook(key){
     const meta=invMeta(key); if(meta.type!=="book") return;
@@ -824,7 +1071,7 @@
     const inst={ id:"E#"+Math.random().toString(36).slice(2), name, qual, slot, weapon:weapon||null,
       atk:Math.round((stats.atk||0)*mul), def:Math.round((stats.def||0)*mul),
       hp:Math.round((stats.hp||0)*mul), mp:Math.round((stats.mp||0)*mul),
-      plus:0 };
+      plus:0, affix:[] };
     EQUIP_DB[inst.id]=inst; return inst.id;
   }
   function addMountToInv(name){
@@ -834,6 +1081,54 @@
   const EQUIP_DB={}; const MOUNT_DB={};
   function getEquipInstance(id){ return EQUIP_DB[id]; }
   function getMountInstance(id){ return MOUNT_DB[id]; }
+
+  /* =============================== */
+  /* [FIX] 裝備/坐騎顯示防呆＋自動從存檔還原實例 */
+  /* =============================== */
+  const __orig_displayEquipName = displayEquipName;
+  const __orig_displayInvName   = displayInvName;
+  function tryRestoreEquipFromSave(id){
+    try{
+      const raw=localStorage.getItem(LKEY);
+      if(!raw) return null;
+      const data=JSON.parse(raw);
+      const found=data && data._eqdb && data._eqdb[id];
+      if(found){ EQUIP_DB[id]=found; return found; }
+    }catch(_){}
+    return null;
+  }
+  function tryRestoreMountFromSave(id){
+    try{
+      const raw=localStorage.getItem(LKEY);
+      if(!raw) return null;
+      const data=JSON.parse(raw);
+      const found=data && data._mddb && data._mddb[id];
+      if(found){ MOUNT_DB[id]=found; return found; }
+    }catch(_){}
+    return null;
+  }
+  displayEquipName = function(id){
+    let inst=getEquipInstance(id);
+    if(!inst && typeof id==="string" && id.startsWith("E#")) inst=tryRestoreEquipFromSave(id);
+    if(!inst){ try{ return __orig_displayEquipName(id); }catch(_){ return "（裝備資料遺失）"; } }
+    const show = inst.qual==="神器" ? `[神器☆${inst.name}]` : inst.name;
+    return `${show}${inst.plus?` +${inst.plus}`:""}${affixShort(inst)}`;
+  };
+  displayInvName = function(k){
+    if(typeof k==="string" && k.startsWith("E#")){
+      let inst=getEquipInstance(k);
+      if(!inst) inst=tryRestoreEquipFromSave(k);
+      if(!inst) return "（裝備資料遺失）";
+      const baseName=fmtItem(inst.name,inst.qual);
+      return `${baseName}${inst.plus?` +${inst.plus}`:""}${affixShort(inst)}`;
+    }
+    if(typeof k==="string" && k.startsWith("M#")){
+      let m=getMountInstance(k);
+      if(!m) m=tryRestoreMountFromSave(k);
+      return m?m.name:"（坐騎資料遺失）";
+    }
+    return __orig_displayInvName ? __orig_displayInvName(k) : k;
+  };
 
   function equipItem(id){
     const inst = getEquipInstance(id); if(!inst) return;
@@ -909,18 +1204,47 @@
     const cost = enhCost(inst);
     const line = document.createElement("div"); line.className="row";
     line.innerHTML = `<div>
-      <b>${displayEquipName(enhTargetId)}</b>｜${fmtQual(inst.qual,inst.qual)}｜ATK ${inst.atk} DEF ${inst.def} HP ${inst.hp} MP ${inst.mp}
+      <b>${displayEquipName(enhTargetId)}</b>｜${fmtQual(inst.qual,inst.qual)}｜ATK ${inst.atk} DEF ${inst.def} HP ${inst.hp} MP ${inst.mp}${affixShort(inst)}
       <br><span class="tag">強化成功率：${Math.round(chance*100)}%｜費用：${cost} G</span>
       ${!canEnh?`<br><span class="tag">（提示：藍品以上才可強化；請先用合成把白→綠→藍）</span>`:""}
     </div>`;
     enhInfo.appendChild(line);
     enhBtnDo.disabled=!canEnh;
   }
+
+  // 成功率表（藍 / 黃 / 橘）
   function enhChance(inst){
-    const p=inst.plus||0;
-    if(p<=2) return 1; if(p===3) return 1;
-    const map=[1,1,1,1,0.8,0.7,0.6,0.5,0.45,0.4,0.35,0.3,0.25,0.22,0.2];
-    return map[Math.min(p, map.length-1)];
+    const p=inst.plus||0, q=inst.qual;
+    if(q==="藍"){
+      if(p<=3) return 1.00;
+      if(p===4||p===5) return 0.95;
+      if(p===6||p===7) return 0.90;
+      if(p===8||p===9) return 0.85;
+      if(p>=10) return 0.80;
+    }else if(q==="黃"){
+      if(p<=3) return 0.85;
+      if(p===4||p===5) return 0.80;
+      if(p===6||p===7) return 0.75;
+      if(p===8) return 0.70;
+      if(p===9) return 0.65;
+      if(p>=10) return 0.50;
+    }else if(q==="橘"){
+      if(p<=3) return 0.70;
+      if(p===4||p===5) return 0.60;
+      if(p===6||p===7) return 0.50;
+      if(p===8) return 0.45;
+      if(p===9) return 0.40;
+      if(p>=10) return 0.30;
+    }else{
+      return 0; // 白/綠不可強化
+    }
+  }
+  // 失敗降階機率
+  function failDropChance(qual){
+    if(qual==="藍") return 0.50;
+    if(qual==="黃") return 0.65;
+    if(qual==="橘") return 0.75;
+    return 1.0;
   }
   function enhCost(inst){
     const base=50 + (QUALITY_ORDER[inst.qual]*100);
@@ -938,18 +1262,83 @@
       inst.hp +=Math.ceil((inst.hp||0)*0.06)+1;
       inst.mp +=Math.ceil((inst.mp||0)*0.06);
       say(`✅ 強化成功！<b>${displayEquipName(enhTargetId)}</b> → +${inst.plus}`);
+      // +10 升品質＆附詞條
       if(inst.plus>=10 && QUALITY_ORDER[inst.qual]<QUALITY_ORDER["神器"]){
+        const prev=inst.qual;
         const next = QUALS[QUALITY_ORDER[inst.qual]+1];
         inst.qual=next; inst.plus=0;
-        say(`🌈 品質提升為 ${fmtQual(next,next)}！`);
+        // 進階時追加詞條
+        if((prev==="藍" && next==="黃") || (prev==="黃" && next==="橘")){
+          addRandomAffix(inst);
+        }
+        say(`🌈 品質提升為 ${fmtQual(next,next)}！${affixShort(inst)}`);
       }
       recomputeStats(false);
     }else{
-      inst.plus=Math.max(0,(inst.plus||0)-1);
-      say(`❌ 強化失敗，降為 +${inst.plus}。`);
+      const dropP = failDropChance(inst.qual);
+      if(Math.random()<dropP){
+        inst.plus=Math.max(0,(inst.plus||0)-1);
+        say(`❌ 強化失敗，降為 +${inst.plus}。`);
+      }else{
+        say(`❌ 強化失敗，但等級不變（保底）。`);
+      }
     }
     renderEnhancePanel(); render(); autosave();
   };
+
+  // 詞條追加
+  function addRandomAffix(inst){
+    // 避免重複同 key（可重複則移除此判斷）
+    const candidates = AFFIX_LIB.filter(a=>!inst.affix.some(x=>x.key===a.key));
+    if(candidates.length===0) return;
+    const pick = candidates[rnd(0,candidates.length-1)];
+    const val = rnd(pick.min, pick.max);
+    inst.affix.push({key:pick.key,val});
+  }
+
+  // 傷害修飾
+  function effectiveEnemyDef(e,p){
+    const w = getEquippedWithAffix(p);
+    if(w?.affix?.some(a=>a.key==="shred")) return Math.floor(e.def*0.8);
+    return e.def;
+  }
+  function getEquippedWithAffix(p){
+    const ids=[p.equip.weapon,p.equip.armor,p.equip.acc].filter(Boolean);
+    for(const id of ids){ const inst=getEquipInstance(id); if(inst && inst.affix && inst.affix.length) return inst; }
+    return null;
+  }
+  function critMaybe(p,base){
+    const w = getEquippedWithAffix(p);
+    let critRate=5; // 基礎 5%
+    if(w?.affix?.some(a=>a.key==="crit")) critRate+=5;
+    const isCrit = Math.random()*100 < critRate;
+    return isCrit ? Math.floor(base*1.8) : base;
+  }
+  function tryCombo(p,e){
+    const w = getEquippedWithAffix(p);
+    if(w?.affix?.some(a=>a.key==="combo")){
+      if(Math.random()*100<25){
+        const effDef=effectiveEnemyDef(e,p);
+        let extra=Math.max(1, rnd(p.atk-1,p.atk+2)-effDef);
+        extra=critMaybe(p,extra);
+        e.hp=clamp(e.hp-extra,0,e.maxhp);
+        say(`🔁 連擊觸發！追加傷害 <span class="hp">-${extra}</span>。`);
+      }
+    }
+  }
+  function affixOnHit(p,e,damage){
+    const w = getEquippedWithAffix(p); if(!w) return;
+    w.affix.forEach(a=>{
+      if(a.key==="lifesteal"){
+        const heal = Math.min(a.val, damage);
+        p.hp=clamp(p.hp+heal,0,p.maxhp);
+        say(`🩸 吸血回復 <b>${heal} HP</b>。`);
+      }
+      if(a.key==="poison"){
+        e.dot = a.val; e.dotTurns = Math.max(3,e.dotTurns); // 至少 3 回合
+      }
+    });
+  }
 
   /* ========= 商店 ========= */
   const shopDlg=$("#shopDlg"), buyList=$("#shopBuyList"), sellList=$("#shopSellList");
@@ -966,7 +1355,7 @@
       let desc="";
       if(s.type==="equip"){ const tpl=EQUIPS[s.name]; desc=`｜白品｜ATK ${tpl.atk||0} DEF ${tpl.def||0} HP ${tpl.hp||0} MP ${tpl.mp||0}`; }
       if(s.type==="mount"){ desc="｜坐騎（移動效率）"; }
-      if(s.type==="consum"){ desc="｜消耗品"; }
+      if(s.type==="consum"){ desc=`｜消耗品${s.name==="經驗加倍捲"?"（5 日加倍，可疊加）":""}`; }
       row.innerHTML=`<div><b>${s.name}</b> <span class="tag">${desc}</span><br><span class="tag">價格：${s.price}G｜庫存：${s.qty}</span></div>`;
       const buyBtn=btn("購買",()=>buyFromShop(s));
       if(s.qty<=0) buyBtn.disabled=true;
@@ -999,7 +1388,8 @@
     if(meta.type==="mount"){ return 5000; }
     if(meta.type==="equip"){
       const eq=getEquipInstance(name); if(!eq) return 5;
-      const base=20 + QUALITY_ORDER[eq.qual]*40 + (eq.plus||0)*10;
+      const affixScore = (eq.affix||[]).length*20;
+      const base=20 + QUALITY_ORDER[eq.qual]*40 + (eq.plus||0)*10 + affixScore;
       return Math.max(5, base);
     }
     if(meta.type==="book"){ return 8; }
@@ -1008,7 +1398,7 @@
   function sellItem(name,cnt,price){ const real=Math.min(cnt,game.inv[name]||0); if(real<=0) return; decInv(name,real); const got=real*price; game.player.gold+=got; say(`💰 賣出 <b>${displayInvName(name)}</b> ×${real}，獲得 <b>${got}G</b>。`); render(); renderSellList(); $("#shopGold").textContent=game.player.gold; }
   function sellSingle(name){ sellItem(name,1,sellPrice(name)); renderInventoryList(); }
 
-  // 🔧 補貨按鈕：每項再補一批基礎庫存量（不重置價格/列表）
+  // 🔧 補貨按鈕
   if(restockBtn){
     restockBtn.onclick=()=>{
       ensureStock();
@@ -1132,25 +1522,6 @@
     explore();
   }
 
-  /* ========= 操作 ========= */
-  const btn=(txt,fn)=>{ const b=document.createElement("button"); b.className="btn small"; b.textContent=txt; b.onclick=fn; return b; };
-
-  function explore(){
-    if(game.state.inBattle) return say("戰鬥中無法探索！");
-    const z=currentZone(), roll=rnd(1,100);
-    if(roll<=62 || z.boss){
-      startBattle();
-    }else if(roll<=85){
-      const g=Math.round(rnd(3,10)* (1 + (game.player.equip.mount?0.1:0)));
-      game.player.gold+=g; say(`你在 ${z.name} 拾獲 <b>${g}G</b>。`);
-    }else{
-      const find=Math.random()<0.5?"小治療藥水":"小魔力藥水"; addInv(find,1); say(`你在 ${z.name} 發現 <b>${find}</b> ×1。`);
-    }
-    render();
-  }
-  function rest(){ if(game.state.inBattle) return say("戰鬥中不能休息！"); const h=rnd(6,10), m=rnd(3,6); game.player.hp=clamp(game.player.hp+h,0,game.player.maxhp); game.player.mp=clamp(game.player.mp+m,0,game.player.maxmp); say(`你在 ${currentZone().name} 小憩，回復 <b>${h} HP</b> 與 <b>${m} MP</b>。`); render(); }
-  function tryRun(){ if(!game.state.inBattle) return say("現在沒有在戰鬥。"); const ok=Math.random()<0.6; if(ok){ say("你成功脫離了戰鬥。"); endBattle(true); } else { say("你試圖逃跑，但失敗了！"); enemyTurn(); } }
-
   /* ========= 說明 ========= */
   function openHelp(){
     const box=$("#helpBox");
@@ -1160,11 +1531,13 @@
       • 掛機：按「🤖 掛機」開關；每 5 秒自動探索/戰鬥，血/魔自動用藥。<br>
       • 地圖：每 10 等一張，直至 200；另有各轉隱藏地圖 & Boss 獨立地圖。<br>
       • 轉職：Lv10/30/70/120 四段；轉職發放專屬技能；職武限制生效。<br>
-      • 商店：只賣白品裝備、消耗品與戰馬（10,000G）。<br>
+      • 商店：只賣白品裝備、消耗品與戰馬（10,000G）。新增<b>經驗加倍捲</b>（100G，5 日，可疊加）。<br>
+      • 藥水：治療藥水可 2 合 1（小→中→大→特級）。特級回 50% HP。<br>
       • 裝備品質：白/綠/藍/黃/橘/神器（紫）；白→綠→藍可用合成（同名 3 件）。<br>
-      • 強化：藍品以上可強化；+1~+3=100%，其後人性化；+10升下一品質；失敗 -1。<br>
-      • 技能：基礎技能書怪物可掉；職業專屬在轉後才開始掉；技能最高 25，滿級可升品質並重置。<br>
-      • 經驗：人性化曲線；每轉職之後的等級需求×2。死亡損失 50% EXP、20% G。<br>
+      • 強化：藍品以上可強化；成功率依品質與等級表；失敗時有機率 -1。+10升下一品質。<br>
+      • 詞條：藍→黃、黃→橘時各追加 1 條詞條（吸血/中毒/爆擊/連擊/破甲）。<br>
+      • 技能：基礎技能書怪物可掉；技能最高 25，滿級可升品質並重置。<br>
+      • 經驗：每層加倍捲 = +100% EXP，可疊加，按「日數」遞減。死亡損失 50% EXP、20% G。<br>
       • 任務：每 10 等刷新清怪任務，可獲藍裝獎勵。<br>
       • Boss：5% 掉專屬坐騎；0.5% 掉 <span class="arti-name">[神器☆名稱]</span>（紫、隨機屬性）。<br>
       <br>
@@ -1172,6 +1545,18 @@
       ${currentZone().pool.map(m=>`・${m.name}`).join("、")}<br>
     `;
     helpDlg.showModal();
+  }
+
+  /* ========= XP 加倍捲 ========= */
+  function addXpBuff(days){ for(let i=0;i<1;i++) game.buffs.xpLayers.push(days); autosave(); } // 一次使用一層
+  function activeXpBuffs(){ return game.buffs.xpLayers.filter(d=>d>0).length; }
+  function advanceDay(n){
+    for(let i=0;i<n;i++){
+      game.state.day+=1;
+      game.buffs.xpLayers = game.buffs.xpLayers.map(d=>Math.max(0,d-1));
+    }
+    const left = activeXpBuffs();
+    say(`☀️ 日數推進至 Day ${game.state.day}（加倍層數 ${left}）`);
   }
 
   /* ========= 綁定 ========= */
@@ -1219,12 +1604,18 @@
   });
 
   // 偽裝＆鍵盤
+  const introDlg = document.getElementById("introDlg");
+  const introBtn = document.getElementById("introBtn");
+  const introStartBtn = document.getElementById("introStartBtn");
+  const introDontShow = document.getElementById("introDontShow");
+  const INTRO_KEY = "stealth_rpg_intro_seen_v1";
+
   function anyDialogOpen(){
-    return [invDlg,questDlg,classDlg,shopDlg,mapDlg,skillDlg,helpDlg,enhDlg].some(d=>d.open);
+    return [invDlg,questDlg,classDlg,shopDlg,mapDlg,skillDlg,helpDlg,enhDlg,introDlg].some(d=>d && d.open);
   }
   document.addEventListener("keydown",(e)=>{
     if(e.key==="Escape"){
-      if(anyDialogOpen()){ [enhDlg,helpDlg,skillDlg,mapDlg,shopDlg,classDlg,questDlg,invDlg].forEach(d=>d.open&&d.close()); return; }
+      if(anyDialogOpen()){ [enhDlg,helpDlg,skillDlg,mapDlg,shopDlg,classDlg,questDlg,invDlg,introDlg].forEach(d=>d && d.open&&d.close()); return; }
     }
     if(document.body.classList.contains("stealth")){ if(e.key==="Escape"){ document.body.classList.toggle("stealth"); } return; }
     const map={
@@ -1236,9 +1627,25 @@
     const sel=map[e.key.toLowerCase()]; if(sel && !anyDialogOpen()){ const b=$(sel); if(b && !b.disabled) b.click(); }
   });
   $("#stealthBtn").onclick=()=>{
-    if(anyDialogOpen()){ [enhDlg,helpDlg,skillDlg,mapDlg,shopDlg,classDlg,questDlg,invDlg].forEach(d=>d.open&&d.close()); return; }
+    if(anyDialogOpen()){ [enhDlg,helpDlg,skillDlg,mapDlg,shopDlg,classDlg,questDlg,invDlg,introDlg].forEach(d=>d && d.open&&d.close()); return; }
     document.body.classList.toggle("stealth");
   };
+
+  function openIntro(force=false){
+    try{
+      const seen = localStorage.getItem(INTRO_KEY)==="1";
+      if(seen && !force) return;
+    }catch(e){}
+    if(introDlg) introDlg.showModal();
+  }
+  function closeIntroAndMaybeRemember(){
+    if(introDontShow && introDontShow.checked){
+      try{ localStorage.setItem(INTRO_KEY,"1"); }catch(e){}
+    }
+    if(introDlg) introDlg.close();
+  }
+  if(introBtn) introBtn.onclick = ()=> openIntro(true);
+  if(introStartBtn) introStartBtn.onclick = closeIntroAndMaybeRemember;
 
   /* ========= 技能庫 Render ========= */
   function renderSkillList(){
@@ -1274,7 +1681,31 @@
   const _origEnd=endBattle;
   endBattle=function(v){ if(v && game.state.enemy){ updateQuestProgressOnKill(game.state.enemy.name); } _origEnd(v); };
 
+  function explore(){
+    if(game.state.inBattle) return say("戰鬥中無法探索！");
+    const z=currentZone(), roll=rnd(1,100);
+    if(roll<=62 || z.boss){
+      startBattle();
+    }else if(roll<=85){
+      const g=Math.round(rnd(3,10)* (1 + (game.player.equip.mount?0.1:0)));
+      game.player.gold+=g; say(`你在 ${z.name} 拾獲 <b>${g}G</b>。`);
+    }else{
+      const options = ["小治療藥水","小魔力藥水"];
+      const find=options[rnd(0,options.length-1)]; addInv(find,1); say(`你在 ${z.name} 發現 <b>${find}</b> ×1。`);
+    }
+    render();
+  }
+  function rest(){ if(game.state.inBattle) return say("戰鬥中不能休息！"); const h=rnd(6,10), m=rnd(3,6); game.player.hp=clamp(game.player.hp+h,0,game.player.maxhp); game.player.mp=clamp(game.player.mp+m,0,game.player.maxmp); say(`你在 ${currentZone().name} 小憩，回復 <b>${h} HP</b> 與 <b>${m} MP</b>。`); if(Math.random()<0.2) advanceDay(1); render(); }
+  function tryRun(){ if(!game.state.inBattle) return say("現在沒有在戰鬥。"); const ok=Math.random()<0.6; if(ok){ say("你成功脫離了戰鬥。"); endBattle(true); } else { say("你試圖逃跑，但失敗了！"); enemyTurn(); } }
+
+  // 啟動
   load(); renderFake(); ensureStock(); recomputeStats(true); if(game.quests.length===0) seedQuests(); intro(); render();
+
+  // 開場介紹只在未勾選不再顯示時跳出
+  try{ if(localStorage.getItem(INTRO_KEY)!=="1"){ openIntro(false); } }catch(e){ openIntro(false); }
+
+  // 生成按鈕（小工具）
+  function btn(txt,fn){ const b=document.createElement("button"); b.className="btn small"; b.textContent=txt; b.onclick=fn; return b; }
 
 })();
 </script>
