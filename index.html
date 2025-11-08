@@ -1267,6 +1267,21 @@ dialog{
         const prev=inst.qual;
         const next = QUALS[QUALITY_ORDER[inst.qual]+1];
         inst.qual=next; inst.plus=0;
+        // 品質升級屬性倍率
+const qualBoost = {
+  "綠": 1.05,
+  "藍": 1.1,
+  "黃": 1.15,
+  "橘": 1.25,
+  "神器": 1.35
+};
+if (qualBoost[next]) {
+  inst.atk = Math.floor(inst.atk * qualBoost[next]);
+  inst.def = Math.floor(inst.def * qualBoost[next]);
+  inst.hp  = Math.floor(inst.hp  * qualBoost[next]);
+  inst.mp  = Math.floor(inst.mp  * qualBoost[next]);
+}
+
         // 進階時追加詞條
         if((prev==="藍" && next==="黃") || (prev==="黃" && next==="橘")){
           addRandomAffix(inst);
@@ -1711,3 +1726,4 @@ dialog{
 </script>
 </body>
 </html>
+
