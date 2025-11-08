@@ -494,6 +494,9 @@ dialog{
 // 0.50 = 每層 +50%（建議）
 // 0.75 = 每層 +75% ……自行調整
 const XP_SCROLL_RATE = 1.00; 
+// === 經驗捲設定（你要改這兩個） ===
+const XP_SCROLL_RATE = 10;  // 例：每層 +50%（改成 1.00 就是 +100%）
+const XP_SCROLL_DAYS = 1000;     // 例：每張持續 5 天
 
   // 物品 / 裝備 / 坐騎 / 加倍捲
   const itemDefs={
@@ -506,13 +509,14 @@ const XP_SCROLL_RATE = 1.00;
     "大魔力藥水":{type:"consum",desc:"回復 16~22 MP", use:(p)=>{ const v=rnd(16,22); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>大魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
     "特級魔力藥水":{type:"consum",desc:"回復 50% MP", use:(p)=>{ const v=Math.ceil(p.maxmp*0.5); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>特級魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
     "煙霧彈":{type:"consum",desc:"戰鬥中嘗試脫離",  use:(p,e,inBattle)=>{ if(inBattle){ say("你投擲了煙霧彈！你逃離了戰鬥。"); endBattle(false); } else { say("你在空地放了煙……好像有點招搖。"); } }},
-    "經驗加倍捲":{type:"consum",
-  desc:`5 日內經驗 +${Math.round(XP_SCROLL_RATE*100)}%，可疊加`,
+   "經驗加倍捲":{type:"consum",
+  desc:`${XP_SCROLL_DAYS} 日內經驗 +${Math.round(XP_SCROLL_RATE*100)}%，可疊加`,
   use:(p)=>{
-    addXpBuff(5);
-    say(`📜 使用 <b>經驗加倍捲</b>：5 日加倍生效（目前層數 ${activeXpStacks()}，總加成 +${Math.round(activeXpBonusRate()*100)}%）。`);
+    addXpBuff(XP_SCROLL_DAYS);
+    say(`📜 使用 <b>經驗加倍捲</b>：${XP_SCROLL_DAYS} 日加倍生效（目前層數 ${activeXpStacks()}，總加成 +${Math.round(activeXpBonusRate()*100)}%）。`);
   }
 },
+
 
     "技能書：活力":{type:"book", skill:"vitality"},
     "技能書：專注":{type:"book", skill:"focus"},
@@ -1900,6 +1904,7 @@ function activeXpBonusRate(){
 </script>
 </body>
 </html>
+
 
 
 
