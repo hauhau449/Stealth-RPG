@@ -229,7 +229,7 @@ dialog{
         <div class="stat">等級：<span id="eLvl" class="lvl">—</span></div>
         <div class="stat">攻擊：<span id="eAtk" class="atk">—</span></div>
         <div class="stat">防禦：<span id="eDef" class="def">—</span></div>
-        <div class="="stat">HP
+        <div class="stat">HP
           <div class="bar hp"><span id="eHpBar" style="width:0%"></span></div>
           <span id="eHpTxt" class="hp">0/0</span>
         </div>
@@ -363,15 +363,14 @@ dialog{
 <!-- 轉生 -->
 <dialog id="rebirthDlg">
   <div class="dlg">
-    <h4>♻️ 轉生（Prestige）</h4>
-    <div class="list" style="padding:10px">
-      <p>達到 <b>Lv.200</b> 後可轉生：</p>
-      <ul>
-        <li>重置為 <b>Lv.1</b>、<b>EXP=0</b></li>
-        <li>永久基礎素質：<b>HP/MP/攻擊/防禦 各 +10</b></li>
-        <li><b>保留</b>：背包物品、裝備（含神器）、坐騎、金幣、技能與詞條</li>
+    <h4>♻️ 轉生</h4>
+    <div class="list" style="padding:10px" id="rebirthInfo">
+      <p>達到 <b>Lv.200</b> 可進行轉生。</p>
+      <ul style="margin:0 0 0 1em">
+        <li>等級重置為 Lv.1，當前裝備與神器<b>保留</b>。</li>
+        <li>永久基礎素質：HP / MP / 攻擊 / 防禦 各 <b>+10</b>（可累積）。</li>
+        <li>金幣、技能、藥水與背包內容保留。</li>
       </ul>
-      <p class="hint">（建議：在安全區域或非戰鬥時進行）</p>
     </div>
     <div class="row" style="justify-content:flex-end;margin-top:8px">
       <button class="btn small" id="doRebirthBtn">確認轉生</button>
@@ -379,6 +378,7 @@ dialog{
     </div>
   </div>
 </dialog>
+
 
   
 <!-- 說明 -->
@@ -465,6 +465,7 @@ dialog{
   const NOW=()=>Date.now();
 
   /* ========= 常數與資料 ========= */
+  const REBIRTH_LVL = 200;
   const QUALS=["白","綠","藍","黃","橘","神器"];
   const QUAL_CLASS=["q-white","q-green","q-blue","q-yellow","q-orange","q-arti"];
   const QUALITY_ORDER={白:0,綠:1,藍:2,黃:3,橘:4,神器:5};
@@ -748,12 +749,13 @@ let baseMaxMp=12 + Math.floor((p.lvl-1)*1.2);
 let baseAtk=6 + Math.floor((p.lvl-1)*0.8);
 let baseDef=2 + Math.floor((p.lvl-1)*0.6);
 
-// ★ 轉生永久加成：每次轉生 HP/MP/攻/防 各 +10（加在基礎值上）
-const rb = Math.max(0, p.rebirths||0);
+// ★ 轉生常駐加成（每次轉生基礎四圍各 +10，會永久套用）
+const rb = p.rebirths || 0;
 baseMaxHp += 10 * rb;
 baseMaxMp += 10 * rb;
 baseAtk   += 10 * rb;
 baseDef   += 10 * rb;
+
 
 let addHp=0, addMp=0, addAtk=0, addDef=0;
 
@@ -1958,6 +1960,7 @@ doRebirthBtn.onclick = ()=>{ doRebirth(); };
 </script>
 </body>
 </html>
+
 
 
 
