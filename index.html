@@ -188,7 +188,8 @@ dialog{
       <button class="btn small" id="shopBtn">🛒 商店</button>
       <button class="btn small" id="skillBookBtn">📚 技能庫</button>
       <button class="btn small" id="questBtn">📜 任務</button>
-      <button class="btn small" id="classBtn" disabled>🏷️ 轉職</button>
+     <button class="btn small" id="classBtn" disabled>🏷️ 轉職</button>
+      <button class="btn small" id="rebirthBtn" disabled>♻️ 轉生</button>
       <button class="btn small" id="afkBtn">🤖 掛機：關</button>
       <button class="btn small" id="helpBtn">❓ 說明</button>
       <button class="btn small" id="introBtn">🎬 介紹</button>
@@ -358,7 +359,28 @@ dialog{
     </div>
   </div>
 </dialog>
+  
+<!-- 轉生 -->
+<dialog id="rebirthDlg">
+  <div class="dlg">
+    <h4>♻️ 轉生（Prestige）</h4>
+    <div class="list" style="padding:10px">
+      <p>達到 <b>Lv.200</b> 後可轉生：</p>
+      <ul>
+        <li>重置為 <b>Lv.1</b>、<b>EXP=0</b></li>
+        <li>永久基礎素質：<b>HP/MP/攻擊/防禦 各 +10</b></li>
+        <li><b>保留</b>：背包物品、裝備（含神器）、坐騎、金幣、技能與詞條</li>
+      </ul>
+      <p class="hint">（建議：在安全區域或非戰鬥時進行）</p>
+    </div>
+    <div class="row" style="justify-content:flex-end;margin-top:8px">
+      <button class="btn small" id="doRebirthBtn">確認轉生</button>
+      <button class="btn small" id="closeRebirth">取消</button>
+    </div>
+  </div>
+</dialog>
 
+  
 <!-- 說明 -->
 <dialog id="helpDlg">
   <div class="dlg">
@@ -576,14 +598,16 @@ const XP_SCROLL_RATE = 0.50;
   /* ========= 狀態 ========= */
   const game = {
     player:{
-      name:"你", job:"Novice", tier:0, lvl:1, exp:0,
-      hp:32, mp:12, atk:6, def:5, maxhp:32, maxmp:12,
-      gold:100, afk:false, lastTick:0,
-      equip:{weapon:null,armor:null,acc:null,mount:null},
-      learned:{"armorbreak":1}, activeSkill:"armorbreak",
-      skillQual:{},
-      passiveKills:{}
-    },
+  name:"你", job:"Novice", tier:0, lvl:10, exp:0,
+  hp:32, mp:12, atk:10, def:5, maxhp:32, maxmp:12,
+  gold:2000, afk:false, lastTick:0,
+  equip:{weapon:null,armor:null,acc:null,mount:null},
+  learned:{"armorbreak":1}, activeSkill:"armorbreak",
+  skillQual:{},
+  passiveKills:{},
+  rebirths: 0   // ← 新增：已轉生次數
+},
+
       inv:{ 
     "小治療藥水":10, 
     "小魔力藥水":10, 
@@ -719,11 +743,20 @@ function nextPotionName(name){
   /* ========= 角色計算 ========= */
   function recomputeStats(applyPassives=false){
     const p=game.player;
-    let baseMaxHp=32 + (p.lvl-1)*2;
-    let baseMaxMp=12 + Math.floor((p.lvl-1)*1.2);
-    let baseAtk=6 + Math.floor((p.lvl-1)*0.8);
-    let baseDef=2 + Math.floor((p.lvl-1)*0.6);
-    let addHp=0, addMp=0, addAtk=0, addDef=0;
+   let baseMaxHp=32 + (p.lvl-1)*2;
+let baseMaxMp=12 + Math.floor((p.lvl-1)*1.2);
+let baseAtk=6 + Math.floor((p.lvl-1)*0.8);
+let baseDef=2 + Math.floor((p.lvl-1)*0.6);
+
+// ★ 轉生永久加成：每次轉生 HP/MP/攻/防 各 +10（加在基礎值上）
+const rb = Math.max(0, p.rebirths||0);
+baseMaxHp += 10 * rb;
+baseMaxMp += 10 * rb;
+baseAtk   += 10 * rb;
+baseDef   += 10 * rb;
+
+let addHp=0, addMp=0, addAtk=0, addDef=0;
+
 
     Object.values(p.equip).forEach(n=>{
       if(!n) return;
@@ -777,7 +810,7 @@ if (game.player.jobBonus) {
       <div class="stat atk">攻擊：${p.atk}</div>
       <div class="stat def">防禦：${p.def}</div>
       <div class="stat lvl">等級：${p.lvl}（EXP ${p.exp}/${expNeedForLevel(p.lvl)}）</div>
-      <div class="stat gold">金幣：${p.gold}｜職業：${jobName(p.job)}（${p.tier}轉）｜日數：${game.state.day}｜經驗加倍層數：${activeXpBuffs()}</div>
+      <div class="stat gold">金幣：${p.gold}｜職業：${jobName(p.job)}（${p.tier}轉）｜轉生：${p.rebirths||0} 次｜日數：${game.state.day}｜經驗加倍層數：${activeXpBuffs()}</div>
     `;
     invBox.innerHTML = Object.keys(game.inv).length
       ? Object.keys(game.inv).slice(0,12).map(k=>`<span class="pill">${displayInvName(k)} × ${game.inv[k]}</span>`).join("")
@@ -1598,10 +1631,23 @@ if (qualBoost[next]) {
   function grantReward(r){ if(r.exp) gainExp(r.exp); if(r.gold) game.player.gold+=r.gold; render(); }
 
   /* ========= 轉職 ========= */
-  function checkUnlocks(){
-    const p=game.player; const t=p.tier||0; const nextReq=CLASS_REQ[t];
-    if(nextReq && p.lvl>=nextReq){ $("#classBtn").disabled=false; say("🏷️ 你感受到職業之力在共鳴，<b>可以轉職</b>了！"); }
+ function checkUnlocks(){
+  const p=game.player; const t=p.tier||0; const nextReq=CLASS_REQ[t];
+  if(nextReq && p.lvl>=nextReq){
+    $("#classBtn").disabled=false;
+    say("🏷️ 你感受到職業之力在共鳴，<b>可以轉職</b>了！");
   }
+  // ★ 200 等解鎖轉生
+  if(p.lvl >= 200){
+    $("#rebirthBtn").disabled = false;
+    // 可避免一直刷訊息：只在從未開啟→開啟的瞬間提示
+    if(!checkUnlocks.__tipped){
+      say("♻️ 你的靈魂在顫動，<b>可以轉生</b>了！");
+      checkUnlocks.__tipped = true;
+    }
+  }
+}
+
   function openClass(){
     const p=game.player, t=p.tier||0, nextReq=CLASS_REQ[t];
     const list=$("#classList"); list.innerHTML="";
@@ -1689,6 +1735,34 @@ if (qualBoost[next]) {
     }
     explore();
   }
+  
+// ==========================
+// ♻️ 轉生功能
+// ==========================
+function doRebirth(){
+  const p = game.player;
+  if(p.lvl < 200){ say("尚未達到 200 等，不能轉生。"); return; }
+  if(game.state.inBattle){ say("戰鬥中不可轉生。"); return; }
+
+  const hpR = Math.max(0, Math.min(1, p.hp / Math.max(1, p.maxhp)));
+  const mpR = Math.max(0, Math.min(1, p.mp / Math.max(1, p.maxmp)));
+
+  p.rebirths = (p.rebirths||0) + 1;
+  p.lvl = 1;
+  p.exp = 0;
+
+  game.state.inBattle = false;
+  game.state.enemy = null;
+
+  recomputeStats(true);
+  p.hp = clamp(Math.floor(p.maxhp * hpR), 1, p.maxhp);
+  p.mp = clamp(Math.floor(p.maxmp * mpR), 0, p.maxmp);
+
+  say(`♻️ <b>轉生成功！</b>（第 ${p.rebirths} 次）基礎素質永久提升：HP/MP/攻擊/防禦 各 +10。`);
+  $("#rebirthBtn").disabled = true;
+  rebirthDlg.close();
+  render(); autosave();
+}
 
   /* ========= 說明 ========= */
   function openHelp(){
@@ -1743,6 +1817,8 @@ if (qualBoost[next]) {
   $("#saveBtn").onclick=autosave;
   $("#resetBtn").onclick=()=>{ if(confirm("確定要重開？會清除存檔與商店庫存。")){ localStorage.removeItem(LKEY); location.reload(); } };
   $("#questBtn").onclick=()=>{ renderQuestList(); questDlg.showModal(); };
+ const rebirthDlg = $("#rebirthDlg");
+const doRebirthBtn = $("#doRebirthBtn");
   $("#classBtn").onclick=()=>openClass();
   $("#shopBtn").onclick=()=>openShop();
   $("#mapBtn").onclick=()=>openMap();
@@ -1759,7 +1835,10 @@ if (qualBoost[next]) {
   $("#closeSkill").onclick=()=>skillDlg.close();
   $("#closeHelp").onclick=()=>helpDlg.close();
   $("#closeEnh").onclick=()=>enhDlg.close();
-
+$("#rebirthBtn").onclick = ()=>{ rebirthDlg.showModal(); };
+$("#closeRebirth").onclick = ()=>{ rebirthDlg.close(); };
+doRebirthBtn.onclick = ()=>{ doRebirth(); };
+  
   // 商店分頁
   shopTabs.forEach(t=>{
     t.onclick=()=>{
@@ -1879,6 +1958,7 @@ if (qualBoost[next]) {
 </script>
 </body>
 </html>
+
 
 
 
