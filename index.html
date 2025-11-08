@@ -716,7 +716,7 @@ function nextPotionName(name){
     const p=game.player;
     let baseMaxHp=32 + (p.lvl-1)*2;
     let baseMaxMp=12 + Math.floor((p.lvl-1)*1.2);
-    let baseAtk=6 + Math.floor((p.lvl-1)*0.8);
+    let baseAtk=50 + Math.floor((p.lvl-1)*0.8);
     let baseDef=2 + Math.floor((p.lvl-1)*0.6);
     let addHp=0, addMp=0, addAtk=0, addDef=0;
 
@@ -1874,6 +1874,7 @@ if (qualBoost[next]) {
 </script>
 </body>
 </html>
+
 
 
 
