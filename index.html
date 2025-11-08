@@ -711,6 +711,19 @@ dialog{
     p.def = baseDef + addDef;
     p.hp = clamp(p.hp,1,p.maxhp);
     p.mp = clamp(p.mp,0,p.maxmp);
+    // === 轉職屬性獎勵：在基礎+裝備之後套用 ===
+if (game.player.jobBonus) {
+  const jb = game.player.jobBonus;
+  // 只在最大值/基礎屬性上加成
+  p.maxhp = Math.floor(p.maxhp * (1 + (jb.hp  || 0)));
+  p.maxmp = Math.floor(p.maxmp * (1 + (jb.mp  || 0)));
+  p.atk   = Math.floor(p.atk   * (1 + (jb.atk || 0)));
+  p.def   = Math.floor(p.def   * (1 + (jb.def || 0)));
+  // 依加成後的最大值重新夾範圍
+  p.hp = clamp(p.hp, 1, p.maxhp);
+  p.mp = clamp(p.mp, 0, p.maxmp);
+}
+
 
     if(applyPassives){
       Object.entries(p.learned||{}).forEach(([id,lv])=>{
@@ -1499,22 +1512,42 @@ if (qualBoost[next]) {
     return JOB_TREE.filter(j=>j.key===game.player.job);
   }
   function chooseClass(key){
-    const p=game.player, t=p.tier||0, need=CLASS_REQ[t]; if(!need) return say("已無更高轉職。");
-    if(p.lvl<need) return say(`❌ 需要 Lv.${need} 才能轉職。`);
-    const cls=JOB_TREE.find(j=>j.key===key); if(!cls) return;
-    p.job=key; p.tier=t+1;
-    cls.start.forEach(id=>{ if(!p.learned[id]) p.learned[id]=1; });
-    say(`🏷️ 你成為了 <b>${cls.name}</b>！（已習得：${cls.start.map(id=>SKILL[id].name).join("、")}）`);
-    $("#classBtn").disabled=true; classDlg.close(); render(); autosave();
-player.maxHp = Math.floor(player.maxHp * 1.2);
-player.maxMp = Math.floor(player.maxMp * 1.1);
-player.hp = player.maxHp;
-player.mp = player.maxMp;
-say(`💪 轉職強化：HP+20%，MP+10%`);
-recomputeStats(false);
-render();
+  const p=game.player, t=p.tier||0, need=CLASS_REQ[t];
+  if(!need){ return say("已無更高轉職。"); }
+  if(p.lvl<need){ return say(`❌ 需要 Lv.${need} 才能轉職。`); }
 
-  }
+  const cls=JOB_TREE.find(j=>j.key===key);
+  if(!cls) return;
+
+  // ① 保留轉職前 HP/MP 百分比
+  const hpRatio = Math.max(0, Math.min(1, p.hp / Math.max(1, p.maxhp)));
+  const mpRatio = Math.max(0, Math.min(1, p.mp / Math.max(1, p.maxmp)));
+
+  // ② 不重置數值模板；僅切換職業/段數、發放起始技能
+  p.job = key;
+  p.tier = t + 1;
+  cls.start.forEach(id=>{ if(!p.learned[id]) p.learned[id]=1; });
+
+  // ③ 設定/疊加轉職獎勵（可自行調整）
+  //    建議：第一段轉職就送這個倍率；之後每次轉職都「疊加」。
+  const ADD = { hp:0.20, mp:0.10, atk:0.05, def:0.05 }; // ← 想調整就改這裡
+  p.jobBonus = p.jobBonus || {hp:0, mp:0, atk:0, def:0};
+  p.jobBonus.hp  += ADD.hp;
+  p.jobBonus.mp  += ADD.mp;
+  p.jobBonus.atk += ADD.atk;
+  p.jobBonus.def += ADD.def;
+
+  // 重新計算，並依比例恢復血魔
+  recomputeStats(false);
+  p.hp = clamp(Math.floor(p.maxhp * hpRatio), 1, p.maxhp);
+  p.mp = clamp(Math.floor(p.maxmp * mpRatio), 0, p.maxmp);
+
+  say(`🏷️ 你成為了 <b>${cls.name}</b>！
+✅ 屬性獎勵：HP +${Math.round(ADD.hp*100)}%、MP +${Math.round(ADD.mp*100)}%、攻防 +${Math.round(ADD.atk*100)}% / +${Math.round(ADD.def*100)}%（可累積）`);
+  $("#classBtn").disabled=true;
+  classDlg.close();
+  render(); autosave();
+}
 
   /* ========= 掛機 ========= */
   let afkTimer=null;
@@ -1734,6 +1767,7 @@ render();
 </script>
 </body>
 </html>
+
 
 
 
