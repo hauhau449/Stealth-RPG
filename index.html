@@ -569,7 +569,7 @@ dialog{
   const game = {
     player:{
       name:"你", job:"Novice", tier:0, lvl:10, exp:0,
-      hp:32, mp:12, atk:6, def:2, maxhp:32, maxmp:12,
+      hp:32, mp:12, atk:10, def:5, maxhp:32, maxmp:12,
       gold:2000, afk:false, lastTick:0,
       equip:{weapon:null,armor:null,acc:null,mount:null},
       learned:{"armorbreak":1}, activeSkill:"armorbreak",
@@ -577,8 +577,8 @@ dialog{
       passiveKills:{}
     },
       inv:{ 
-    "小治療藥水":3, 
-    "小魔力藥水":2, 
+    "小治療藥水":10, 
+    "小魔力藥水":10, 
     "煙霧彈":1,
    },
     state:{ inBattle:false, enemy:null, kills:{}, zoneId:"z-01", day:1 },
@@ -1771,6 +1771,7 @@ if (qualBoost[next]) {
 </script>
 </body>
 </html>
+
 
 
 
