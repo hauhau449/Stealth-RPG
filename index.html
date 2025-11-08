@@ -590,10 +590,24 @@ dialog{
   };
 
   /* ========= 工具 ========= */
+  // 可 2 合 1 的藥水鏈（治療 & 魔力）
+const POTION_CHAINS = [
+  ["小治療藥水","中治療藥水","大治療藥水","特級治療藥水"],
+  ["小魔力藥水","中魔力藥水","大魔力藥水","特級魔力藥水"],
+];
+// 回傳下一級藥水名稱；若不在任何鏈或已到頂，回傳 null
+function nextPotionName(name){
+  for(const chain of POTION_CHAINS){
+    const idx = chain.indexOf(name);
+    if(idx>=0) return (idx<chain.length-1) ? chain[idx+1] : null;
+  }
+  return null;
+}
+
   const rnd=(n,m)=>Math.floor(Math.random()*(m-n+1))+n;
   const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
   const say=html=>{ const p=document.createElement("p"); p.innerHTML=html; log.appendChild(p); log.scrollTop=log.scrollHeight; autosave(); };
-
+/* ================2合1藥水鏈=============== */
   /* =============================== */
   /* [ADD] 全域錯誤寫入冒險日誌（排錯用） */
   /* =============================== */
@@ -1010,11 +1024,11 @@ if (game.player.jobBonus) {
         extra = `｜${def.desc||""}`;
         right.append(btn("使用",()=>{ useItem(name); renderInventoryList(); }));
         // 藥水 2 合 1（只對治療藥水鏈）
-        const chain = ["小治療藥水","中治療藥水","大治療藥水","特級治療藥水"];
-        const idx = chain.indexOf(meta.ref);
-        if(idx>=0 && idx<chain.length-1 && (game.inv[name]||0)>=2){
-          right.append(btn("合成→下一級",()=>{ combinePotion(meta.ref); renderInventoryList(); }));
-        }
+       const next = nextPotionName(meta.ref);
+if(next && (game.inv[name]||0) >= 2){
+  right.append(btn("合成→下一級",()=>{ combinePotion(meta.ref); renderInventoryList(); }));
+}
+
       }else if(meta.type==="book"){
         const skillId = itemDefs[meta.ref]?.skill;
         const sk=SKILL[skillId]; extra=`｜學習/升級：${sk?sk.name:"未知"}`;
@@ -1044,15 +1058,14 @@ if (game.player.jobBonus) {
     if(game.state.inBattle) enemyTurn();
   }
   function combinePotion(name){
-    // 兩瓶合一（只合治療藥水）
-    const chain = ["小治療藥水","中治療藥水","大治療藥水","特級治療藥水"];
-    const idx = chain.indexOf(name);
-    if(idx<0 || idx>=chain.length-1) return;
-    if((game.inv[name]||0) < 2) return say("需要 2 瓶同級藥水。");
-    decInv(name,2);
-    addInv(chain[idx+1],1);
-    say(`⚗️ 合成成功：<b>${name}</b> ×2 → <b>${chain[idx+1]}</b> ×1`);
-  }
+  const next = nextPotionName(name);
+  if(!next) return say("此物品不可再合成。");
+  if((game.inv[name]||0) < 2) return say("需要 2 瓶同級藥水。");
+  decInv(name,2);
+  addInv(next,1);
+  say(`⚗️ 合成成功：<b>${name}</b> ×2 → <b>${next}</b> ×1`);
+}
+
   function useBook(key){
     const meta=invMeta(key); if(meta.type!=="book") return;
     const skill = itemDefs[meta.ref]?.skill; if(!skill) return;
@@ -1623,7 +1636,7 @@ if (qualBoost[next]) {
       • 地圖：每 10 等一張，直至 200；另有各轉隱藏地圖 & Boss 獨立地圖。<br>
       • 轉職：Lv10/30/70/120 四段；轉職發放專屬技能；職武限制生效。<br>
       • 商店：只賣白品裝備、消耗品與戰馬（10,000G）。新增<b>經驗加倍捲</b>（100G，5 日，可疊加）。<br>
-      • 藥水：治療藥水可 2 合 1（小→中→大→特級）。特級回 50% HP。<br>
+      • 藥水：治療與魔力藥水皆可 2 合 1（小→中→大→特級）。特級：治療回 50% HP、魔力回 50% MP。<br>
       • 裝備品質：白/綠/藍/黃/橘/神器（紫）；白→綠→藍可用合成（同名 3 件）。<br>
       • 強化：藍品以上可強化；成功率依品質與等級表；失敗時有機率 -1。+10升下一品質。<br>
       • 詞條：藍→黃、黃→橘時各追加 1 條詞條（吸血/中毒/爆擊/連擊/破甲）。<br>
@@ -1802,6 +1815,7 @@ if (qualBoost[next]) {
 </script>
 </body>
 </html>
+
 
 
 
