@@ -1269,11 +1269,11 @@ dialog{
         inst.qual=next; inst.plus=0;
         // 品質升級屬性倍率
 const qualBoost = {
-  "綠": 1.05,
-  "藍": 1.1,
-  "黃": 1.15,
-  "橘": 1.25,
-  "神器": 1.35
+  "綠": 2,
+  "藍": 3,
+  "黃": 4,
+  "橘": 5,
+  "神器": 10
 };
 if (qualBoost[next]) {
   inst.atk = Math.floor(inst.atk * qualBoost[next]);
@@ -1726,4 +1726,5 @@ if (qualBoost[next]) {
 </script>
 </body>
 </html>
+
 
