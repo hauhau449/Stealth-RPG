@@ -489,6 +489,11 @@ dialog{
         p.mp-=mp; let h=rnd(4,6), tot=0, scale=1+lv*0.04; for(let i=0;i<h;i++){ const effDef=effectiveEnemyDef(e,p); const d=Math.max(2,rnd(p.atk+3,p.atk+8)-Math.floor(effDef*0.6)); tot+=critMaybe(p,d); }
         tot=Math.floor(tot*scale); e.hp=clamp(e.hp-tot,0,e.maxhp); affixOnHit(p,e,tot); tryCombo(p,e); say(`你使出 <b>奧義·萬斬</b> Lv.${lv}！合計 <span class="hp">-${tot}</span>！`); return true; } }
   };
+// ===【經驗加倍捲倍率】===
+// 1.00 = 每層 +100%（原本行為）
+// 0.50 = 每層 +50%（建議）
+// 0.75 = 每層 +75% ……自行調整
+const XP_SCROLL_RATE = 10.50; 
 
   // 物品 / 裝備 / 坐騎 / 加倍捲
   const itemDefs={
@@ -1874,6 +1879,7 @@ if (qualBoost[next]) {
 </script>
 </body>
 </html>
+
 
 
 
