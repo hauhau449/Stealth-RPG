@@ -493,10 +493,7 @@ dialog{
 // 1.00 = 每層 +100%（原本行為）
 // 0.50 = 每層 +50%（建議）
 // 0.75 = 每層 +75% ……自行調整
-const XP_SCROLL_RATE = 1.00; 
-// === 經驗捲設定（你要改這兩個） ===
-const XP_SCROLL_RATE = 10;  // 例：每層 +50%（改成 1.00 就是 +100%）
-const XP_SCROLL_DAYS = 1000;     // 例：每張持續 5 天
+const XP_SCROLL_RATE = 0.50; 
 
   // 物品 / 裝備 / 坐騎 / 加倍捲
   const itemDefs={
@@ -509,15 +506,7 @@ const XP_SCROLL_DAYS = 1000;     // 例：每張持續 5 天
     "大魔力藥水":{type:"consum",desc:"回復 16~22 MP", use:(p)=>{ const v=rnd(16,22); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>大魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
     "特級魔力藥水":{type:"consum",desc:"回復 50% MP", use:(p)=>{ const v=Math.ceil(p.maxmp*0.5); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>特級魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
     "煙霧彈":{type:"consum",desc:"戰鬥中嘗試脫離",  use:(p,e,inBattle)=>{ if(inBattle){ say("你投擲了煙霧彈！你逃離了戰鬥。"); endBattle(false); } else { say("你在空地放了煙……好像有點招搖。"); } }},
-   "經驗加倍捲":{type:"consum",
-  desc:`${XP_SCROLL_DAYS} 日內經驗 +${Math.round(XP_SCROLL_RATE*100)}%，可疊加`,
-  use:(p)=>{
-    addXpBuff(XP_SCROLL_DAYS);
-    say(`📜 使用 <b>經驗加倍捲</b>：${XP_SCROLL_DAYS} 日加倍生效（目前層數 ${activeXpStacks()}，總加成 +${Math.round(activeXpBonusRate()*100)}%）。`);
-  }
-},
-
-
+    "經驗加倍捲":{type:"consum",desc:"5 日內經驗 +100%，可疊加", use:(p)=>{ addXpBuff(5); say(`📜 使用 <b>經驗加倍捲</b>：5 日加倍生效（目前層數 ${activeXpBuffs()}）。`);} }, // [NEW]
     "技能書：活力":{type:"book", skill:"vitality"},
     "技能書：專注":{type:"book", skill:"focus"},
     "技能書：火球術":{type:"book", skill:"fireball"},
@@ -788,10 +777,8 @@ if (game.player.jobBonus) {
       <div class="stat atk">攻擊：${p.atk}</div>
       <div class="stat def">防禦：${p.def}</div>
       <div class="stat lvl">等級：${p.lvl}（EXP ${p.exp}/${expNeedForLevel(p.lvl)}）</div>
-     <div class="stat gold">
-  金幣：${p.gold}｜職業：${jobName(p.job)}（${p.tier}轉）｜日數：${game.state.day}
-  ｜經驗加倍：${activeXpStacks()} 層（+${Math.round(activeXpBonusRate()*100)}%）
-</div>`;
+      <div class="stat gold">金幣：${p.gold}｜職業：${jobName(p.job)}（${p.tier}轉）｜日數：${game.state.day}｜經驗加倍層數：${activeXpBuffs()}</div>
+    `;
     invBox.innerHTML = Object.keys(game.inv).length
       ? Object.keys(game.inv).slice(0,12).map(k=>`<span class="pill">${displayInvName(k)} × ${game.inv[k]}</span>`).join("")
       : `<span class="pill muted">（空）</span>`;
@@ -928,8 +915,8 @@ if (game.player.jobBonus) {
     const e=game.state.enemy; game.state.inBattle=false; game.state.enemy=null; $("#runBtn").disabled=true;
     if(victory){
       const z=currentZone(); let gold=e.gold, exp=e.exp;
-      const mult = 1 + activeXpBonusRate(); // 每層用 XP_SCROLL_RATE 計
-      const finalExp = Math.floor(exp * mult);
+      const mult = 1 + activeXpBuffs(); // 每層 +100%，=1+層數
+      const finalExp = Math.floor(exp*mult);
       game.player.gold+=gold; gainExp(finalExp);
       game.state.kills[e.name]=(game.state.kills[e.name]||0)+1;
       updatePassivesOnKill();
@@ -1712,8 +1699,7 @@ if (qualBoost[next]) {
       • 掛機：按「🤖 掛機」開關；每 5 秒自動探索/戰鬥，血/魔自動用藥。<br>
       • 地圖：每 10 等一張，直至 200；另有各轉隱藏地圖 & Boss 獨立地圖。<br>
       • 轉職：Lv10/30/70/120 四段；轉職發放專屬技能；職武限制生效。<br>
-      • 商店：只賣白品裝備、消耗品與戰馬（10,000G）。新增經驗加倍捲（100G，5 日，可疊加）。
-      • 經驗：每層加倍捲 = +${Math.round(XP_SCROLL_RATE*100)}% EXP，可疊加，按「日數」遞減。
+      • 商店：只賣白品裝備、消耗品與戰馬（10,000G）。新增<b>經驗加倍捲</b>（100G，5 日，可疊加）。<br>
       • 藥水：治療與魔力藥水皆可 2 合 1（小→中→大→特級）。特級：治療回 50% HP、魔力回 50% MP。<br>
       • 裝備品質：白/綠/藍/黃/橘/神器（紫）；白→綠→藍可用合成（同名 3 件）。<br>
       • 強化：藍品以上可強化；成功率依品質與等級表；失敗時有機率 -1。+10升下一品質。<br>
@@ -1722,7 +1708,6 @@ if (qualBoost[next]) {
       • 經驗：每層加倍捲 = +100% EXP，可疊加，按「日數」遞減。死亡損失 50% EXP、20% G。<br>
       • 任務：每 10 等刷新清怪任務，可獲藍裝獎勵。<br>
       • Boss：5% 掉專屬坐騎；0.5% 掉 <span class="arti-name">[神器☆名稱]</span>（紫、隨機屬性）。<br>
-      • 測試通知1<br>
       <br>
       <b>怪物與掉落（當前地圖）</b><br>
       ${currentZone().pool.map(m=>`・${m.name}`).join("、")}<br>
@@ -1731,19 +1716,8 @@ if (qualBoost[next]) {
   }
 
   /* ========= XP 加倍捲 ========= */
-  function addXpBuff(days){ game.buffs.xpLayers.push(days); autosave(); } // 一次使用一層
-
-// 目前有效層數（>0 天的層）
-function activeXpStacks(){
-  return game.buffs.xpLayers.filter(d=>d>0).length;
-}
-
-// 轉成總加成倍率（不含基礎 1 倍）
-// 例如 XP_SCROLL_RATE=0.5、3 層 ⇒ 0.5*3 = 1.5（= +150%）
-function activeXpBonusRate(){
-  return activeXpStacks() * XP_SCROLL_RATE;
-}
-
+  function addXpBuff(days){ for(let i=0;i<1;i++) game.buffs.xpLayers.push(days); autosave(); } // 一次使用一層
+  function activeXpBuffs(){ return game.buffs.xpLayers.filter(d=>d>0).length; }
   function advanceDay(n){
     for(let i=0;i<n;i++){
       game.state.day+=1;
@@ -1905,3 +1879,28 @@ function activeXpBonusRate(){
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
