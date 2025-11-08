@@ -961,12 +961,53 @@ if (game.player.jobBonus) {
       if(d.equip && Math.random()<d.rate){ addEquipToInv(d.equip,"白"); }
       if(d.mount && Math.random()<d.rate){ addMountToInv(d.mount); say(`🐎 你獲得坐騎：<b>${d.mount}</b>！`); }
       if(d.artifact && Math.random()<d.rate){
-        const name = `[神器☆${d.baseName}]`;
-        const affix = rollArtifactAffix();
-        const id = makeEquipInstance(name, "神器", affix.slot, affix.weapon, affix.stats);
-        addInv(id,1);
-        say(`🟣 獲得 <span class="arti-name">${name}</span>（隨機屬性）！`);
-      }
+  const name = `[神器☆${d.baseName}]`;
+
+  // 1) 依槽位生成高白值（你前面已加入的函式）
+  const roll = rollArtifactStatsForSlot();
+
+  // 2) 等級縮放（20等後每等 +2%，最多 +60%）
+  const lvl  = (game.player?.lvl || 1);
+  const lvScale = 1 + Math.min(0.60, Math.max(0, lvl-20) * 0.02);
+  Object.keys(roll.stats).forEach(k=>{
+    roll.stats[k] = Math.round(roll.stats[k] * lvScale);
+  });
+
+  // 3) 以「神器」倍率生成實例（會套用 invMul 的 2.4）
+  const id   = makeEquipInstance(name, "神器", roll.slot, roll.weapon, roll.stats);
+  const inst = getEquipInstance(id);
+
+  // 4) 地板校正：至少 ≥ 橘 × 1.15
+  (function ensureArtifactFloor(inst){
+    const mul = { 白:1, 綠:1.15, 藍:1.3, 黃:1.5, 橘:1.7, 神器:2.4 };
+    // 反推出此神器的「白等價基底」
+    const baseWhite = {
+      atk: Math.max(0, Math.round(inst.atk / mul["神器"])),
+      def: Math.max(0, Math.round(inst.def / mul["神器"])),
+      hp : Math.max(0, Math.round(inst.hp  / mul["神器"])),
+      mp : Math.max(0, Math.round(inst.mp  / mul["神器"]))
+    };
+    // 橘為 1.7，再給 15% 安全係數
+    const refMul = mul["橘"] * 1.15;
+    const ref = {
+      atk: Math.round(baseWhite.atk * refMul),
+      def: Math.round(baseWhite.def * refMul),
+      hp : Math.round(baseWhite.hp  * refMul),
+      mp : Math.round(baseWhite.mp  * refMul),
+    };
+    inst.atk = Math.max(inst.atk, ref.atk);
+    inst.def = Math.max(inst.def, ref.def);
+    inst.hp  = Math.max(inst.hp , ref.hp );
+    inst.mp  = Math.max(inst.mp , ref.mp );
+  })(inst);
+
+  // 5) 保底 2~3 詞條
+  addRandomAffixN(inst, rnd(2,3));
+
+  addInv(id,1);
+  say(`🟣 獲得 <span class="arti-name">${name}</span>（${roll.slot==="weapon"?"武器":roll.slot==="armor"?"防具":"飾品"}｜高素質＋詞條）！`);
+}
+
     });
   }
   function rollArtifactAffix(){
@@ -1212,7 +1253,7 @@ if(next && (game.inv[name]||0) >= 2){
 const base = { atk: inst.atk, def: inst.def, hp: inst.hp, mp: inst.mp };
 
 // 品質倍率表
-const invMul = [1, 1.15, 1.3, 1.5, 1.7, 2.0];
+const invMul = [1, 1.05, 1.1, 1.15, 1.2, 1.5];
 const curMul  = invMul[QUALITY_ORDER[q]];
 const nextMul = invMul[QUALITY_ORDER[next]];
 
@@ -1282,22 +1323,23 @@ say(`⚗️ 合成成功！獲得 ${fmtQual(next,qualName(inst.name,next))}（AT
       if(p===6||p===7) return 0.90;
       if(p===8||p===9) return 0.85;
       if(p>=10) return 0.80;
-    }else if(q==="黃"){
-      if(p<=3) return 0.85;
-      if(p===4||p===5) return 0.80;
-      if(p===6||p===7) return 0.75;
-      if(p===8) return 0.70;
-      if(p===9) return 0.65;
-      if(p>=10) return 0.50;
-    }else if(q==="橘"){
-      if(p<=3) return 0.70;
-      if(p===4||p===5) return 0.60;
-      if(p===6||p===7) return 0.50;
-      if(p===8) return 0.45;
-      if(p===9) return 0.40;
-      if(p>=10) return 0.30;
-    }else{
-      return 0; // 白/綠不可強化
+    }else if(q === "橘"){
+    if(p <= 3) return 0.70;
+    if(p === 4 || p === 5) return 0.60;
+    if(p === 6 || p === 7) return 0.50;
+    if(p === 8) return 0.45;
+    if(p === 9) return 0.40;
+    if(p >= 10) return 0.30;
+  } else if(q === "神器"){
+    // ★ 新增：神器成功率（更嚴苛）
+    if(p <= 3) return 0.55;
+    if(p === 4 || p === 5) return 0.45;
+    if(p === 6 || p === 7) return 0.35;
+    if(p === 8) return 0.25;
+    if(p === 9) return 0.20;
+    if(p >= 10) return 0.12; // 神器不升品質，只吃里程碑效果
+  } else {
+    return 0; // 白/綠不可強化
     }
   }
   // 失敗降階機率
@@ -1305,6 +1347,7 @@ say(`⚗️ 合成成功！獲得 ${fmtQual(next,qualName(inst.name,next))}（AT
     if(qual==="藍") return 0.50;
     if(qual==="黃") return 0.65;
     if(qual==="橘") return 0.75;
+    if(qual === "神器") return 0.85;   // ★ 新增：神器失敗多半會掉階
     return 1.0;
   }
   function enhCost(inst){
@@ -1815,6 +1858,7 @@ if (qualBoost[next]) {
 </script>
 </body>
 </html>
+
 
 
 
