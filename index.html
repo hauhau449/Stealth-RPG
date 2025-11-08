@@ -1506,6 +1506,14 @@ if (qualBoost[next]) {
     cls.start.forEach(id=>{ if(!p.learned[id]) p.learned[id]=1; });
     say(`🏷️ 你成為了 <b>${cls.name}</b>！（已習得：${cls.start.map(id=>SKILL[id].name).join("、")}）`);
     $("#classBtn").disabled=true; classDlg.close(); render(); autosave();
+player.maxHp = Math.floor(player.maxHp * 1.2);
+player.maxMp = Math.floor(player.maxMp * 1.1);
+player.hp = player.maxHp;
+player.mp = player.maxMp;
+say(`💪 轉職強化：HP+20%，MP+10%`);
+recomputeStats(false);
+render();
+
   }
 
   /* ========= 掛機 ========= */
@@ -1726,5 +1734,6 @@ if (qualBoost[next]) {
 </script>
 </body>
 </html>
+
 
 
