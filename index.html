@@ -2028,7 +2028,13 @@ doRebirthBtn.onclick = ()=>{ doRebirth(); };
     }
     render();
   }
-  function rest(){ if(game.state.inBattle) return say("戰鬥中不能休息！"); const h=rnd(6,10), m=rnd(3,6); game.player.hp=clamp(game.player.hp+h,0,game.player.maxhp); game.player.mp=clamp(game.player.mp+m,0,game.player.maxmp); say(`你在 ${currentZone().name} 小憩，回復 <b>${h} HP</b> 與 <b>${m} MP</b>。`); if(Math.random()<0.2) advanceDay(1); render(); }
+  function rest(){ if(game.state.inBattle) return say("戰鬥中不能休息！"); 
+  // 20%～80% 隨機回復（依上限）
+const pct = 0.2 + Math.random() * 0.6;               // 0.2~0.8
+const h = Math.max(1, Math.floor(game.player.maxhp * pct));
+const m = Math.max(1, Math.floor(game.player.maxmp * pct));
+
+  game.player.hp=clamp(game.player.hp+h,0,game.player.maxhp); game.player.mp=clamp(game.player.mp+m,0,game.player.maxmp); say(`你在 ${currentZone().name} 小憩，回復 <b>${h} HP</b> 與 <b>${m} MP</b>。`); if(Math.random()<0.2) advanceDay(1); render(); }
   function tryRun(){ 
   if(!game.state.inBattle) return say("現在沒有在戰鬥。"); 
   const ok = Math.random() < 0.6; 
@@ -2059,6 +2065,7 @@ doRebirthBtn.onclick = ()=>{ doRebirth(); };
 </script>
 </body>
 </html>
+
 
 
 
