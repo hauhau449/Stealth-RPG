@@ -601,7 +601,7 @@ const XP_SCROLL_RATE = 0.50;
     player:{
   name:"你", job:"Novice", tier:0, lvl:1, exp:0,
   hp:32, mp:12, atk:6, def:5, maxhp:32, maxmp:12,
-  gold:2000, afk:false, lastTick:0,
+  gold:200, afk:false, lastTick:0,
   equip:{weapon:null,armor:null,acc:null,mount:null},
   learned:{"armorbreak":1}, activeSkill:"armorbreak",
   skillQual:{},
@@ -1152,25 +1152,82 @@ if(next && (game.inv[name]||0) >= 2){
     const skill = itemDefs[meta.ref]?.skill; if(!skill) return;
     learnOrUpgradeSkill(skill, meta.ref);
   }
-  function learnOrUpgradeSkill(id, bookName){
-    const p=game.player, maxLv=25;
-    const cur=p.learned[id]||0;
-    const need = Math.pow(2, Math.max(0, cur));
-    if( (game.inv[bookName]||0) < need ){
-      say(`📘 需要 <b>${need}</b> 本 <b>${bookName}</b> 才能升級（目前 ${game.inv[bookName]||0}）`);
-      return;
-    }
-    for(let i=0;i<need;i++) decInv(bookName,1);
-    if(cur===0){ p.learned[id]=1; say(`📖 你學會了 <b>${SKILL[id].name}</b>！`); }
-    else if(cur<maxLv){ p.learned[id]=cur+1; say(`📈 <b>${SKILL[id].name}</b> 升至 Lv.${p.learned[id]}（消耗 ${need} 本）。`); }
-    else{
-      const q=(p.skillQual[id]||0)+1; p.skillQual[id]=Math.min(q, QUALS.length-1);
-      p.learned[id]=1;
-      say(`🌟 <b>${SKILL[id].name}</b> 已升為 <b>${QUALS[p.skillQual[id]]}</b> 品質，等級重置為 Lv.1。`);
-    }
-    if(SKILL[id].type!=="被動"){ p.activeSkill=id; }
-    render();
+/* === 技能書升級設定 ===========================
+   可改參數（依你喜好調整）
+----------------------------------------------- */
+const SKILL_MAX_LV = 25;           // 每個品質的等級上限（原本 25）
+const SKILL_QUALITY_UP = true;     // 滿級後是否升一階品質並重置等級
+const SKILL_UP_GOLD_COST = 0;      // 升級額外需要的金幣（0=不需要）
+
+// 升級需求模式：選一種
+//  "pow2"   : 2^當前等級（原本的作法，如 Lv1→1本，Lv2→2本，Lv3→4本…）
+//  "linear" : 每級固定 1 本
+//  "arith"  : 1, 2, 3, 4…（等級越高越多）
+//  "custom" : 自訂公式（改下面的 calcSkillBooksNeeded）
+const SKILL_BOOK_MODE = "custom";
+
+/** 算升級需要幾本技能書（依當前等級 curLv） */
+function calcSkillBooksNeeded(curLv){
+  switch(SKILL_BOOK_MODE){
+    case "pow2":   return Math.pow(2, Math.max(0, curLv));          // 原版
+    case "linear": return 1;                                         // 每級 1 本
+    case "arith":  return Math.max(1, curLv);                        // 1,2,3,4…
+    case "custom":
+      // ⬇️ 你想要自己的曲線，就改這裡（例如每級 2 本 + 每 2 級多 1 本）
+      return 2 + Math.floor(curLv/2);
+    default:       return 1;
   }
+}
+
+  function learnOrUpgradeSkill(id, bookName){
+  const p = game.player;
+  const maxLv = SKILL_MAX_LV;
+  const cur = p.learned[id] || 0;
+
+  // 需要的書本數（由設定決定）
+  const need = calcSkillBooksNeeded(cur);
+
+  // 檢查書本是否足夠
+  if( (game.inv[bookName]||0) < need ){
+    say(`📘 升級需要 <b>${need}</b> 本 <b>${bookName}</b>（目前 ${game.inv[bookName]||0}）`);
+    return;
+  }
+  // 檢查金幣是否足夠（若有設定）
+  if(SKILL_UP_GOLD_COST > 0 && p.gold < SKILL_UP_GOLD_COST){
+    say(`💰 升級需要 <b>${SKILL_UP_GOLD_COST}</b> 金幣（目前 ${p.gold}）`);
+    return;
+  }
+
+  // 扣道具／金幣
+  for(let i=0;i<need;i++) decInv(bookName,1);
+  if(SKILL_UP_GOLD_COST > 0){ p.gold -= SKILL_UP_GOLD_COST; }
+
+  // 未學會 → 學會 Lv.1
+  if(cur === 0){
+    p.learned[id] = 1;
+    say(`📖 你學會了 <b>${SKILL[id].name}</b>！`);
+  }
+  // 已學會且未滿級 → 升一級
+  else if(cur < maxLv){
+    p.learned[id] = cur + 1;
+    say(`📈 <b>${SKILL[id].name}</b> 升至 Lv.${p.learned[id]}（消耗 ${need} 本${SKILL_UP_GOLD_COST>0?`＋${SKILL_UP_GOLD_COST} 金幣`:``}）。`);
+  }
+  // 滿級後 → 是否升品質
+  else{
+    if(SKILL_QUALITY_UP){
+      const q = (p.skillQual[id]||0) + 1;
+      p.skillQual[id] = Math.min(q, QUALS.length-1);
+      p.learned[id] = 1;
+      say(`🌟 <b>${SKILL[id].name}</b> 升為 <b>${QUALS[p.skillQual[id]]}</b> 品質，等級重置為 Lv.1。`);
+    }else{
+      say(`🔒 <b>${SKILL[id].name}</b> 已達本品質上限 Lv.${maxLv}。`);
+    }
+  }
+
+  // 主動技能：升級後自動設為當前技能（維持原行為）
+  if(SKILL[id].type!=="被動"){ p.activeSkill = id; }
+  render(); autosave();
+}
 
   function addInv(name,c=1){ game.inv[name]=(game.inv[name]||0)+c; autosave(); }
   function decInv(name,c=1){ if(!game.inv[name]) return; game.inv[name]-=c; if(game.inv[name]<=0) delete game.inv[name]; autosave(); }
@@ -1945,7 +2002,7 @@ doRebirthBtn.onclick = ()=>{ doRebirth(); };
     render();
   }
   function rest(){ if(game.state.inBattle) return say("戰鬥中不能休息！"); const h=rnd(6,10), m=rnd(3,6); game.player.hp=clamp(game.player.hp+h,0,game.player.maxhp); game.player.mp=clamp(game.player.mp+m,0,game.player.maxmp); say(`你在 ${currentZone().name} 小憩，回復 <b>${h} HP</b> 與 <b>${m} MP</b>。`); if(Math.random()<0.2) advanceDay(1); render(); }
- function tryRun(){ 
+  function tryRun(){ 
   if(!game.state.inBattle) return say("現在沒有在戰鬥。"); 
   const ok = Math.random() < 0.6; 
   if(ok){ 
@@ -1975,34 +2032,3 @@ doRebirthBtn.onclick = ()=>{ doRebirth(); };
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
