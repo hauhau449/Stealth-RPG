@@ -1945,7 +1945,22 @@ doRebirthBtn.onclick = ()=>{ doRebirth(); };
     render();
   }
   function rest(){ if(game.state.inBattle) return say("戰鬥中不能休息！"); const h=rnd(6,10), m=rnd(3,6); game.player.hp=clamp(game.player.hp+h,0,game.player.maxhp); game.player.mp=clamp(game.player.mp+m,0,game.player.maxmp); say(`你在 ${currentZone().name} 小憩，回復 <b>${h} HP</b> 與 <b>${m} MP</b>。`); if(Math.random()<0.2) advanceDay(1); render(); }
-  function tryRun(){ if(!game.state.inBattle) return say("現在沒有在戰鬥。"); const ok=Math.random()<0.6; if(ok){ say("你成功脫離了戰鬥。"); endBattle(true); } else { say("你試圖逃跑，但失敗了！"); enemyTurn(); } }
+ function tryRun(){ 
+  if(!game.state.inBattle) return say("現在沒有在戰鬥。"); 
+  const ok = Math.random() < 0.6; 
+  if(ok){ 
+    // ✅ 改成單純脫離戰鬥，不結算勝利
+    game.state.inBattle = false;
+    game.state.enemy = null;
+    $("#runBtn").disabled = true;
+    say("🏃‍♂️ 你成功脫離了戰鬥。");
+    render(); autosave();
+  } else { 
+    say("你試圖逃跑，但失敗了！"); 
+    enemyTurn(); 
+  } 
+}
+
 
   // 啟動
   load(); renderFake(); ensureStock(); recomputeStats(true); if(game.quests.length===0) seedQuests(); intro(); render();
@@ -1960,6 +1975,7 @@ doRebirthBtn.onclick = ()=>{ doRebirth(); };
 </script>
 </body>
 </html>
+
 
 
 
