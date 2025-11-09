@@ -1780,7 +1780,7 @@ if (qualBoost[next]) {
     $("#afkBtn").textContent = game.player.afk? "🤖 掛機：開" : "🤖 掛機：關";
     if(game.player.afk){
       if(afkTimer) clearInterval(afkTimer);
-      afkTimer=setInterval(()=>afkTick(), 5000);
+      afkTimer=setInterval(()=>afkTick(), 1000);
       say("🤖 掛機已開啟。");
     }else{
       if(afkTimer) clearInterval(afkTimer), afkTimer=null;
@@ -2039,4 +2039,5 @@ doRebirthBtn.onclick = ()=>{ doRebirth(); };
 </script>
 </body>
 </html>
+
 
