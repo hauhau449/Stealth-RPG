@@ -1420,6 +1420,13 @@ say(`⚗️ 合成成功！獲得 ${fmtQual(next,qualName(inst.name,next))}（AT
       if(p===6||p===7) return 0.90;
       if(p===8||p===9) return 0.85;
       if(p>=10) return 0.80;
+     }else if(q === "黃"){
+    if(p <= 3) return 0.85;
+    if(p === 4 || p === 5) return 0.80;
+    if(p === 6 || p === 7) return 0.75;
+    if(p === 8) return 0.70;
+    if(p === 9) return 0.65;
+    if(p >= 10) return 0.60;
     }else if(q === "橘"){
     if(p <= 3) return 0.70;
     if(p === 4 || p === 5) return 0.60;
@@ -1427,7 +1434,7 @@ say(`⚗️ 合成成功！獲得 ${fmtQual(next,qualName(inst.name,next))}（AT
     if(p === 8) return 0.45;
     if(p === 9) return 0.40;
     if(p >= 10) return 0.30;
-  } else if(q === "神器"){
+  } else if(q === "紫"){
     // ★ 新增：神器成功率（更嚴苛）
     if(p <= 3) return 0.55;
     if(p === 4 || p === 5) return 0.45;
@@ -2032,3 +2039,4 @@ doRebirthBtn.onclick = ()=>{ doRebirth(); };
 </script>
 </body>
 </html>
+
