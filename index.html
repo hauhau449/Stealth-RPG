@@ -1900,9 +1900,13 @@ function doRebirth(){
   $("#invBtn").onclick=()=>openInventory();
   $("#runBtn").onclick=tryRun;
 
-  $("#saveBtn").onclick=autosave;
-  $("#resetBtn").onclick=()=>{ if(confirm("確定要重開？會清除存檔與商店庫存。")){ localStorage.removeItem(LKEY); location.reload(); } };
-  $("#questBtn").onclick=()=>{ renderQuestList(); questDlg.showModal(); };
+$("#saveBtn").onclick = ()=>{
+  autosave();
+  say("💾 存檔成功！");
+};
+$("#resetBtn").onclick=()=>{ if(confirm("確定要重開？會清除存檔與商店庫存。")){ localStorage.removeItem(LKEY); location.reload(); } };
+$("#questBtn").onclick=()=>{ renderQuestList(); questDlg.showModal(); };
+
  const rebirthDlg = $("#rebirthDlg");
 const doRebirthBtn = $("#doRebirthBtn");
   $("#classBtn").onclick=()=>openClass();
@@ -2065,6 +2069,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
