@@ -938,20 +938,33 @@ if (game.player.jobBonus) {
   }
 
   function randomEnemy(){
-    const z=currentZone();
-    const bandMid = Math.floor((z.suggest[0]+z.suggest[1])/2);
-    const basePick = z.pool[rnd(0,z.pool.length-1)];
-    const base = JSON.parse(JSON.stringify(basePick.base));
-    const dayScale=1+(Math.min(60,game.state.day)-1)*0.01;
-    const lvl=rnd(z.suggest[0],z.suggest[1]);
-    const sc = 1 + (lvl - bandMid)*0.03;
-    const p=game.player;
-    const tierScale = 1 + p.tier*0.15 + Math.max(0, (p.lvl - bandMid))*0.01;
-    ["hp","mp","atk","def"].forEach(k=> base[k]=Math.max(1, Math.round(base[k]*dayScale*sc*tierScale)));
-    const e = { name: basePick.name, lvl, maxhp:base.hp, hp:base.hp, maxmp:base.mp, mp:base.mp, atk:base.atk, def:base.def,
-      gold:Math.round(rnd(...base.gold)), exp:Math.round(rnd(...base.exp)), drops:base.drops||[], isBoss: !!basePick.isBoss, tag:base.tag||"", dot:0, dotTurns:0 };
-    return e;
-  }
+  const z=currentZone();
+  const bandMid = Math.floor((z.suggest[0]+z.suggest[1])/2);
+  const basePick = z.pool[rnd(0,z.pool.length-1)];
+  const base = JSON.parse(JSON.stringify(basePick.base));
+  const dayScale=1+(Math.min(60,game.state.day)-1)*0.01;
+  const lvl=rnd(z.suggest[0],z.suggest[1]);
+  const sc = 1 + (lvl - bandMid)*0.03;
+  const p=game.player;
+  const tierScale = 1 + p.tier*0.15 + Math.max(0, (p.lvl - bandMid))*0.01;
+  ["hp","mp","atk","def"].forEach(k=> base[k]=Math.max(1, Math.round(base[k]*dayScale*sc*tierScale)));
+
+  const e = {
+    name: basePick.name,
+    lvl,
+    maxhp: base.hp, hp: base.hp,
+    maxmp: base.mp, mp: base.mp,
+    atk: base.atk, def: base.def,
+    gold: Math.round(rnd(...base.gold)),
+    exp:  Math.round(rnd(...base.exp)),
+    drops: base.drops,            // ⬅️ 這一行是關鍵：把掉落表帶進敵人物件
+    isBoss: !!basePick.isBoss,
+    tag: base.tag || "",
+    dot: 0, dotTurns: 0
+  };
+  return e;
+}
+
 
   function startBattle(){
     if(game.state.inBattle){ say("你還在戰鬥中！"); return; }
@@ -2130,6 +2143,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
