@@ -625,6 +625,49 @@ const POTION_CHAINS = [
   ["小治療藥水","中治療藥水","大治療藥水","特級治療藥水"],
   ["小魔力藥水","中魔力藥水","大魔力藥水","特級魔力藥水"],
 ];
+//自動用藥輔助程式
+  // ✅ 依目前血量百分比自動選擇：特級→大→中→小（有就用）
+function autoUseHeal(){
+  const p = game.player, inv = game.inv || {};
+  const hpRate = p.hp / p.maxhp;
+
+  const tryList =
+    hpRate < 0.20 ? ["特級治療藥水","大治療藥水","中治療藥水","小治療藥水"] :
+    hpRate < 0.40 ? ["大治療藥水","中治療藥水","小治療藥水"] :
+    hpRate < 0.60 ? ["中治療藥水","小治療藥水"] :
+                    ["小治療藥水"];
+
+  for(const name of tryList){
+    if((inv[name]||0) > 0){
+      useItem(name);     // 交給你既有的 itemDefs.use 內部結算與扣數量
+      return true;
+    }
+  }
+  return false;
+}
+
+// ✅ 依目前魔力百分比自動選擇：特級→大→中→小（有就用）
+function autoUseMana(){
+  const p = game.player, inv = game.inv || {};
+  const mpRate = p.mp / p.maxmp;
+
+  const tryList =
+    mpRate < 0.20 ? ["特級魔力藥水","大魔力藥水","中魔力藥水","小魔力藥水"] :
+    mpRate < 0.40 ? ["大魔力藥水","中魔力藥水","小魔力藥水"] :
+    mpRate < 0.60 ? ["中魔力藥水","小魔力藥水"] :
+                    ["小魔力藥水"];
+
+  for(const name of tryList){
+    if((inv[name]||0) > 0){
+      useItem(name);
+      return true;
+    }
+  }
+  return false;
+}
+
+  
+  
 // 回傳下一級藥水名稱；若不在任何鏈或已到頂，回傳 null
 function nextPotionName(name){
   for(const chain of POTION_CHAINS){
@@ -1788,36 +1831,48 @@ if (qualBoost[next]) {
     }
   }
   function afkTick(){
+  // ✅ 防呆：戰鬥旗標與敵人實體不同步時，立即結束戰鬥，避免技能空放
+  if(game.state.inBattle && (!game.state.enemy || game.state.enemy.hp <= 0)){
+    endBattle(true);
+    return;
+  }
+
   if(game.state.inBattle){
     const p = game.player;
+    const e = game.state.enemy;
 
-    // 自動用藥
-    if(p.hp < Math.floor(p.maxhp * 0.35) && (game.inv["小治療藥水"] || 0) > 0){
-      useItem("小治療藥水");
-      return;
-    }
-    if(p.mp < Math.floor(p.maxmp * 0.25) && (game.inv["小魔力藥水"] || 0) > 0){
-      useItem("小魔力藥水");
-      return;
-    }
+   // ✅ 自動用藥（支援小/中/大/特級）
+if( autoUseHeal() ) return;
+if( autoUseMana() ) return;
 
-    // 嘗試技能；若失敗（回傳 false）則改用普通攻擊
+
+    // ✅ 嘗試主動技能（只有在真的有敵人且存活時才施放）
     let acted = false;
     if(p.activeSkill){
       const id = p.activeSkill, sk = SKILL[id];
-      if(sk && sk.type === "主動"){
-        const ok = sk.use(p, game.state.enemy, p.learned[id] || 1);
+      if(sk && sk.type === "主動" && e && e.hp > 0){
+        const ok = sk.use(p, e, p.learned[id] || 1);
         if(ok) acted = true;
       }
     }
 
+    // ✅ 技能不可用就普攻
     if(!acted){
-      playerAttack(); // 改用普通攻擊
+      playerAttack();
     }
+
+    // ✅ 補上勝負判定（原本 useActiveSkill() 才有，掛機缺少）
+    if(game.state.enemy && game.state.enemy.hp <= 0){
+      endBattle(true);
+      return;
+    }
+
+    // ✅ 補上敵方回合（原本掛機沒呼叫，導致敵人不會動，看起來「沒在打」）
+    enemyTurn();
     return;
   }
 
-  // 不在戰鬥中 → 探索
+  // 不在戰鬥中 → 探索以觸發戰鬥
   explore();
 }
 
@@ -2069,6 +2124,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
