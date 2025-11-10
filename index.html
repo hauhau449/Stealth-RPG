@@ -176,6 +176,10 @@ dialog{
   color:#eaf2ff;
   border-color:#415269;
 }
+  /* ✅ 顯示 HP／MP 百分比的顏色樣式 */
+.stat .pct{ margin-left:4px; opacity:.9 }
+.stat .pct.mid{ color: var(--gold); }
+.stat .pct.low{ color: var(--bad); font-weight:600; }
 
 </style>
 </head>
@@ -846,12 +850,14 @@ if (game.player.jobBonus) {
   /* ========= Render ========= */
   function render(){
     const p=game.player, z=currentZone();
+    const hpPct = Math.round((p.hp / p.maxhp) * 100);
+    const mpPct = Math.round((p.mp / p.maxmp) * 100);
     $("#shopGold").textContent=p.gold;
     $("#zoneName").textContent = `${z.name}`;
     $("#activeSkillName").textContent = skillNameWithLv(p.activeSkill);
     statsBox.innerHTML=`
-      <div class="stat hp">HP：${p.hp} / ${p.maxhp}</div>
-      <div class="stat mp">MP：${p.mp} / ${p.maxmp}</div>
+    <div class="stat hp">HP：${p.hp} / ${p.maxhp} <span class="pct ${hpPct<=35?'low':hpPct<=60?'mid':''}">（${hpPct}%）</span></div>
+    <div class="stat mp">MP：${p.mp} / ${p.maxmp} <span class="pct ${mpPct<=25?'low':mpPct<=60?'mid':''}">（${mpPct}%）</span></div>
       <div class="stat atk">攻擊：${p.atk}</div>
       <div class="stat def">防禦：${p.def}</div>
       <div class="stat lvl">等級：${p.lvl}（EXP ${p.exp}/${expNeedForLevel(p.lvl)}）</div>
@@ -2124,6 +2130,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
