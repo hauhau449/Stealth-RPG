@@ -524,13 +524,13 @@ const XP_SCROLL_RATE = 2.0;
 
   // 物品 / 裝備 / 坐騎 / 加倍捲
   const itemDefs={
-    "小治療藥水":{type:"consum",desc:"回復 10~14 HP", use:(p)=>{ const v=rnd(10,14); p.hp=clamp(p.hp+v,0,p.maxhp); say(`你使用 <b>小治療藥水</b>，回復 <b>${v} HP</b>。`);} },
-    "中治療藥水":{type:"consum",desc:"回復 18~24 HP", use:(p)=>{ const v=rnd(18,24); p.hp=clamp(p.hp+v,0,p.maxhp); say(`你使用 <b>中治療藥水</b>，回復 <b>${v} HP</b>。`);} }, // [NEW]
-    "大治療藥水":{type:"consum",desc:"回復 30~40 HP", use:(p)=>{ const v=rnd(30,40); p.hp=clamp(p.hp+v,0,p.maxhp); say(`你使用 <b>大治療藥水</b>，回復 <b>${v} HP</b>。`);} }, // [NEW]
+    "小治療藥水":{type:"consum",desc:"回復 20~50 HP", use:(p)=>{ const v=rnd(20,50); p.hp=clamp(p.hp+v,0,p.maxhp); say(`你使用 <b>小治療藥水</b>，回復 <b>${v} HP</b>。`);} },
+    "中治療藥水":{type:"consum",desc:"回復 150~300 HP", use:(p)=>{ const v=rnd(150,300); p.hp=clamp(p.hp+v,0,p.maxhp); say(`你使用 <b>中治療藥水</b>，回復 <b>${v} HP</b>。`);} }, // [NEW]
+    "大治療藥水":{type:"consum",desc:"回復 500~750 HP", use:(p)=>{ const v=rnd(500,750); p.hp=clamp(p.hp+v,0,p.maxhp); say(`你使用 <b>大治療藥水</b>，回復 <b>${v} HP</b>。`);} }, // [NEW]
     "特級治療藥水":{type:"consum",desc:"回復 50% HP", use:(p)=>{ const v=Math.ceil(p.maxhp*0.5); p.hp=clamp(p.hp+v,0,p.maxhp); say(`你使用 <b>特級治療藥水</b>，回復 <b>${v} HP</b>。`);} }, // [NEW]
-    "小魔力藥水":{type:"consum",desc:"回復 5~8 MP",  use:(p)=>{ const v=rnd(5,8); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>小魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
-    "中魔力藥水":{type:"consum",desc:"回復 10~14 MP", use:(p)=>{ const v=rnd(10,14); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>中魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
-    "大魔力藥水":{type:"consum",desc:"回復 16~22 MP", use:(p)=>{ const v=rnd(16,22); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>大魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
+    "小魔力藥水":{type:"consum",desc:"回復 20~50 MP",  use:(p)=>{ const v=rnd(20,50); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>小魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
+    "中魔力藥水":{type:"consum",desc:"回復 150~300 MP", use:(p)=>{ const v=rnd(150,300); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>中魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
+    "大魔力藥水":{type:"consum",desc:"回復 500~750 MP", use:(p)=>{ const v=rnd(500,750); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>大魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
     "特級魔力藥水":{type:"consum",desc:"回復 50% MP", use:(p)=>{ const v=Math.ceil(p.maxmp*0.5); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>特級魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
     "煙霧彈":{type:"consum",desc:"戰鬥中嘗試脫離",  use:(p,e,inBattle)=>{ if(inBattle){ say("你投擲了煙霧彈！你逃離了戰鬥。"); endBattle(false); } else { say("你在空地放了煙……好像有點招搖。"); } }},
     "經驗加倍捲":{type:"consum",desc:"5 日內經驗 +100%，可疊加", use:(p)=>{ addXpBuff(5); say(`📜 使用 <b>經驗加倍捲</b>：5 日加倍生效（目前層數 ${activeXpBuffs()}）。`);} }, // [NEW]
@@ -629,42 +629,67 @@ const POTION_CHAINS = [
   ["小治療藥水","中治療藥水","大治療藥水","特級治療藥水"],
   ["小魔力藥水","中魔力藥水","大魔力藥水","特級魔力藥水"],
 ];
-//自動用藥輔助程式
-  // ✅ 依目前血量百分比自動選擇：特級→大→中→小（有就用）
+// ===== 自動用藥參數（可自行調整） =====
+const AUTO_POTION = {
+  hp: { threshold: 0.60, minMissing: 10, cooldownMs: 800 },  // 低於60%且至少少10HP才喝
+  mp: { threshold: 0.35, minMissing: 8,  cooldownMs: 800 }   // 低於35%且至少少8MP才喝
+};
+
+// ✅ 自動治療（HP）
 function autoUseHeal(){
   const p = game.player, inv = game.inv || {};
-  const hpRate = p.hp / p.maxhp;
+  if(!p || p.maxhp<=0) return false;
 
+  // 滿血、缺血不足、不在冷卻 → 直接退出
+  const missing = p.maxhp - p.hp;
+  if(missing <= 0) return false;
+  if(missing < AUTO_POTION.hp.minMissing) return false;
+
+  const now = Date.now();
+  if(p._healCD && now - p._healCD < AUTO_POTION.hp.cooldownMs) return false;
+
+  const hpRate = p.hp / p.maxhp;
+  if(hpRate >= AUTO_POTION.hp.threshold) return false;
+
+  // 依血量挑藥：特→大→中→小
   const tryList =
     hpRate < 0.20 ? ["特級治療藥水","大治療藥水","中治療藥水","小治療藥水"] :
     hpRate < 0.40 ? ["大治療藥水","中治療藥水","小治療藥水"] :
-    hpRate < 0.60 ? ["中治療藥水","小治療藥水"] :
-                    ["小治療藥水"];
+                    ["中治療藥水","小治療藥水"];
 
   for(const name of tryList){
     if((inv[name]||0) > 0){
-      useItem(name);     // 交給你既有的 itemDefs.use 內部結算與扣數量
-      return true;
+      const used = useItem(name);      // 需搭配B段的useItem回傳布林
+      if(used){ p._healCD = Date.now(); return true; }
     }
   }
   return false;
 }
 
-// ✅ 依目前魔力百分比自動選擇：特級→大→中→小（有就用）
+// ✅ 自動回魔（MP）
 function autoUseMana(){
   const p = game.player, inv = game.inv || {};
+  if(!p || p.maxmp<=0) return false;
+
+  const missing = p.maxmp - p.mp;
+  if(missing <= 0) return false;
+  if(missing < AUTO_POTION.mp.minMissing) return false;
+
+  const now = Date.now();
+  if(p._manaCD && now - p._manaCD < AUTO_POTION.mp.cooldownMs) return false;
+
   const mpRate = p.mp / p.maxmp;
+  if(mpRate >= AUTO_POTION.mp.threshold) return false;
 
   const tryList =
     mpRate < 0.20 ? ["特級魔力藥水","大魔力藥水","中魔力藥水","小魔力藥水"] :
     mpRate < 0.40 ? ["大魔力藥水","中魔力藥水","小魔力藥水"] :
-    mpRate < 0.60 ? ["中魔力藥水","小魔力藥水"] :
-                    ["小魔力藥水"];
+                    ["中魔力藥水","小魔力藥水"];
 
   for(const name of tryList){
     if((inv[name]||0) > 0){
-      useItem(name);
-      return true;
+      const used = useItem(name);
+      if(used){ p._manaCD = Date.now(); return true; }
     }
   }
   return false;
@@ -2143,6 +2168,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
