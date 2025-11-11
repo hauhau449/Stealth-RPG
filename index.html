@@ -492,31 +492,44 @@ dialog{
   // 技能
   const SKILL={
     armorbreak:{ id:"armorbreak", name:"破甲斬", type:"主動", baseMp:3, desc:"降低目標防禦後造成傷害。",
-      use:(p,e,lv)=>{ const mp=3; if(p.mp<mp) return say("魔力不足。"), false;
+      use:(p,e,lv)=>{if (!e) return false;  // 沒敵人就直接跳出，不要繼續執行
+ const mp=3; if(p.mp<mp) return say("魔力不足。"), false;
         p.mp-=mp; const scale=1+lv*0.04; const effDef=effectiveEnemyDef(e,p); const dmg=Math.max(2, rnd(p.atk+2,p.atk+6)-Math.floor(effDef*0.6)); const out=Math.floor(critMaybe(p,dmg)*scale);
         e.hp=clamp(e.hp-out,0,e.maxhp); affixOnHit(p,e,out); say(`你施放 <b>破甲斬</b> Lv.${lv}，造成 <span class="hp">-${out}</span>！`); return true; } },
+   
     smash:{ id:"smash", name:"猛擊", type:"主動", baseMp:4, desc:"重擊造成高傷害。",
-      use:(p,e,lv)=>{ const mp=4; if(p.mp<mp) return say("魔力不足。"), false;
+      use:(p,e,lv)=>{if (!e) return false;  // 沒敵人就直接跳出，不要繼續執行
+ const mp=4; if(p.mp<mp) return say("魔力不足。"), false;
         p.mp-=mp; const scale=1+lv*0.05; const effDef=effectiveEnemyDef(e,p); const base=Math.max(3, Math.floor((rnd(p.atk+4,p.atk+9)-effDef))); const out=Math.floor(critMaybe(p,base)*scale);
         e.hp=clamp(e.hp-out,0,e.maxhp); affixOnHit(p,e,out); tryCombo(p,e); say(`你使出 <b>猛擊</b> Lv.${lv}，<span class="hp">-${out}</span>！`); return true; } },
+    
     fireball:{ id:"fireball", name:"火球術", type:"主動", baseMp:5, desc:"火焰無視多數防禦。",
-      use:(p,e,lv)=>{ const mp=5; if(p.mp<mp) return say("魔力不足。"), false;
+      use:(p,e,lv)=>{if (!e) return false;  // 沒敵人就直接跳出，不要繼續執行
+ const mp=5; if(p.mp<mp) return say("魔力不足。"), false;
         p.mp-=mp; const scale=1+lv*0.05; const ignore=Math.floor(e.def*0.7); const base=Math.max(4, Math.floor((rnd(p.atk+6,p.atk+12)-ignore))); const out=Math.floor(critMaybe(p,base)*scale);
         e.hp=clamp(e.hp-out,0,e.maxhp); affixOnHit(p,e,out); tryCombo(p,e); say(`你施放 <b>火球術</b> Lv.${lv}！<span class="hp">-${out}</span>。`); return true; } },
+    
     flurry:{ id:"flurry", name:"連擊", type:"主動", baseMp:4, desc:"2~3 次連段。",
-      use:(p,e,lv)=>{ const mp=4; if(p.mp<mp) return say("魔力不足。"), false;
+      use:(p,e,lv)=>{if (!e) return false;  // 沒敵人就直接跳出，不要繼續執行
+ const mp=4; if(p.mp<mp) return say("魔力不足。"), false;
         p.mp-=mp; let hits=rnd(2,3), tot=0, scale=1+lv*0.035; for(let i=0;i<hits;i++){ const effDef=effectiveEnemyDef(e,p); const d=Math.max(1,rnd(p.atk-1,p.atk+3)-Math.floor(effDef*0.8)); tot+=critMaybe(p,d); }
         tot=Math.floor(tot*scale); e.hp=clamp(e.hp-tot,0,e.maxhp); affixOnHit(p,e,tot); tryCombo(p,e); say(`你施展 <b>連擊</b> Lv.${lv}，${hits} 段合計 <span class="hp">-${tot}</span>！`); return true; } },
+    
     smite:{ id:"smite", name:"聖光制裁", type:"主動", baseMp:6, desc:"聖光重擊，對黑暗系額外傷害。",
-      use:(p,e,lv)=>{ const mp=6; if(p.mp<mp) return say("魔力不足。"), false;
+      use:(p,e,lv)=>{if (!e) return false;  // 沒敵人就直接跳出，不要繼續執行
+ const mp=6; if(p.mp<mp) return say("魔力不足。"), false;
         p.mp-=mp; const scale=1+lv*0.06; const effDef=effectiveEnemyDef(e,p); let out=Math.max(5, Math.floor((p.atk+8 - Math.floor(effDef*0.5))*scale)); if(e.tag==="dark") out=Math.floor(out*1.25);
         out=critMaybe(p,out); e.hp=clamp(e.hp-out,0,e.maxhp); affixOnHit(p,e,out); tryCombo(p,e); say(`你釋放 <b>聖光制裁</b> Lv.${lv}！<span class="hp">-${out}</span>。`); return true; } },
+    
     vitality:{ id:"vitality", name:"活力", type:"被動", desc:"最大HP +10 / 等",
       passive:(p,lv)=>{ p.maxhp+=10*lv; p.hp=Math.min(p.hp+10*lv,p.maxhp);} },
+    
     focus:{ id:"focus", name:"專注", type:"被動", desc:"最大MP +6 / 等",
       passive:(p,lv)=>{ p.maxmp+=6*lv; p.mp=Math.min(p.mp+6*lv,p.maxmp);} },
+    
     omnislash:{ id:"omnislash", name:"奧義：萬斬", type:"奧義", baseMp:8, desc:"爆發 4~6 段大傷。",
-      use:(p,e,lv)=>{ const mp=8; if(p.mp<mp) return say("魔力不足。"), false;
+      use:(p,e,lv)=>{if (!e) return false;  // 沒敵人就直接跳出，不要繼續執行
+ const mp=8; if(p.mp<mp) return say("魔力不足。"), false;
         p.mp-=mp; let h=rnd(4,6), tot=0, scale=1+lv*0.04; for(let i=0;i<h;i++){ const effDef=effectiveEnemyDef(e,p); const d=Math.max(2,rnd(p.atk+3,p.atk+8)-Math.floor(effDef*0.6)); tot+=critMaybe(p,d); }
         tot=Math.floor(tot*scale); e.hp=clamp(e.hp-tot,0,e.maxhp); affixOnHit(p,e,tot); tryCombo(p,e); say(`你使出 <b>奧義·萬斬</b> Lv.${lv}！合計 <span class="hp">-${tot}</span>！`); return true; } }
   };
@@ -1026,6 +1039,12 @@ if (game.player.jobBonus) {
   }
   function enemyTurn(){
     const p=game.player, e=game.state.enemy;
+      // ✅ 沒敵人就結束（避免 e.dot 取值報錯）
+  if(!e){
+    game.state.inBattle = false;
+    return;
+  }
+
     // 毒傷（在敵方回合前結算）
     if(e.dot && e.dotTurns>0){
       const d=e.dot; e.hp=clamp(e.hp-d,0,e.maxhp); e.dotTurns--; say(`☠️ <b>${e.name}</b> 受到中毒 <span class="bad">-${d}</span>。`);
@@ -1657,6 +1676,8 @@ if (qualBoost[next]) {
     }
   }
   function affixOnHit(p,e,damage){
+     // ✅ 沒有敵人就別處理詞條
+  if(!e) return;
     const w = getEquippedWithAffix(p); if(!w) return;
     w.affix.forEach(a=>{
       if(a.key==="lifesteal"){
@@ -1884,9 +1905,11 @@ if (qualBoost[next]) {
     endBattle(true);
     return;
   }
+ // ✅ 沒在戰鬥就不要做任何敵人相關邏輯
+  if(!game.state.inBattle || !game.state.enemy) return;
 
   if(game.state.inBattle){
-    const p = game.player;
+  const p = game.player;
     const e = game.state.enemy;
 
    // ✅ 自動用藥（支援小/中/大/特級）
@@ -2172,6 +2195,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
