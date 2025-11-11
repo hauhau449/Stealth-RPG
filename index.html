@@ -310,6 +310,18 @@ dialog{
   </div>
 </dialog>
 
+<!-- 坐騎資訊 -->
+<dialog id="mountDlg">
+  <div class="dlg">
+    <h4>🐎 坐騎資訊</h4>
+    <div id="mountInfo" class="list"></div>
+    <div class="row" style="justify-content:flex-end;margin-top:8px">
+      <button class="btn small" id="closeMount">關閉</button>
+    </div>
+  </div>
+</dialog>
+
+  
 <!-- 任務 -->
 <dialog id="questDlg">
   <div class="dlg">
@@ -1768,6 +1780,54 @@ say(`⚗️ 合成成功！獲得 ${fmtQual(next,qualName(inst.name,next))}（AT
     if(!id){ say("此槽位尚未裝備。"); return; }
     enhTargetId=id; renderEnhancePanel(); enhDlg.showModal();
   }
+//坐騎裝備欄開窗
+// [MOUNT-UI] 坐騎資訊面板
+const mountDlg   = $("#mountDlg");
+const mountInfo  = $("#mountInfo");
+const closeMount = $("#closeMount");
+
+// 點擊坐騎槽位 → 開啟坐騎資訊
+$("#slot-mount").onclick = ()=> openMountPanel();
+
+function openMountPanel(){
+  const id = game.player.equip.mount;
+  if(!id){
+    say("尚未裝備坐騎。");
+    return;
+  }
+  // 嘗試取出坐騎實例（若重整後失聯，走救援還原）
+  let m = getMountInstance(id);
+  if(!m && typeof tryRestoreMountFromSave === "function"){
+    m = tryRestoreMountFromSave(id);
+  }
+  if(!m){
+    say("坐騎資料遺失。");
+    return;
+  }
+
+  // 取原始定義（拿描述 desc 用，不影響實例數值）
+  const tpl = (typeof MOUNTS !== "undefined") ? (MOUNTS[m.name] || {}) : {};
+
+  // 排版：沿用你的 .stats/.stat 風格
+  mountInfo.innerHTML = `
+    <div class="row" style="align-items:center;gap:8px">
+      <div style="font-weight:700">${m.name}</div>
+      <span class="tag">移動效率 SPD：${m.spd || 0}</span>
+    </div>
+    <div class="hint" style="margin:6px 0 10px 0">描述：${tpl.desc || "—"}</div>
+    <div class="stats" style="margin-top:4px">
+      <div class="stat atk">攻擊：${m.atk || 0}</div>
+      <div class="stat def">防禦：${m.def || 0}</div>
+      <div class="stat hp">HP：${m.hp || 0}</div>
+      <div class="stat mp">MP：${m.mp || 0}</div>
+    </div>
+  `;
+  mountDlg.showModal();
+}
+
+closeMount.onclick = ()=> mountDlg.close();
+//坐騎裝備欄開窗
+  
   function renderEnhancePanel(){
     enhInfo.innerHTML="";
     const inst=getEquipInstance(enhTargetId); if(!inst){ enhInfo.innerHTML="<div class='row'>找不到裝備。</div>"; return; }
@@ -2494,6 +2554,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
