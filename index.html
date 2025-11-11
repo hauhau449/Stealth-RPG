@@ -473,6 +473,62 @@ dialog{
   const QUALS=["白","綠","藍","黃","橘","神器"];
   const QUAL_CLASS=["q-white","q-green","q-blue","q-yellow","q-orange","q-arti"];
   const QUALITY_ORDER={白:0,綠:1,藍:2,黃:3,橘:4,神器:5};
+  
+  // =============================
+// 🟣 神器命名器：依部位/武器類型生成名稱
+// =============================
+const ARTIFACT_NAME_LIB = {
+  prefix: ["星墜","冰封","深淵","焰心","黎明","暮影","靈泉","雷紋","夢魘","寂光","白銀","蒼穹","虛空","聖裁","暗月"],
+  suffix: ["的低語","之誓","的枷鎖","的迴響","之影","之祈","的斷章","的心臟","之環","之印","的祝福","的宿命"],
+  base: {
+    weapon: {
+      blade:  ["審判長劍","斬裂之刃","白狼細劍","破曉闊劍","裁決大劍"],
+      dagger: ["夜行匕首","蛇牙短刃","影縫之刺","無聲之刃","獵月短刀"],
+      staff:  ["星吟法杖","霜語長杖","魂燈權杖","靈潮長杖","雷唱權杖"],
+      any:    ["遺落武器"]
+    },
+    armor: { any: ["白狼胸甲","霜紋鎧","星砂長袍","深寒皮甲","誓約戰袍","鳶影外套","蒼星護胸"] },
+    acc:   { any: ["遠旅戒","回音之環","霧語吊墜","晨星耳飾","靈印手環","蒐魂勳章","月潮項鍊"] }
+  }
+};
+function rndPick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function artifactBaseName(slot, weapon){
+  if (slot === "weapon"){
+    const lib = ARTIFACT_NAME_LIB.base.weapon;
+    if (weapon && lib[weapon]) return rndPick(lib[weapon]);
+    return rndPick(lib.any);
+  }
+  if (slot === "armor") return rndPick(ARTIFACT_NAME_LIB.base.armor.any);
+  return rndPick(ARTIFACT_NAME_LIB.base.acc.any);
+}
+function inferPrefixByContext(){
+  try{
+    const z = currentZone?.() || {};
+    const name = (z.name || "").toString();
+    if (/冰|雪|寒|霜/.test(name)) return "冰封";
+    if (/深淵|黑|暗|影/.test(name)) return "暗月";
+    if (/星|空|天/.test(name)) return "星墜";
+    if (/火|炎|焰/.test(name)) return "焰心";
+  }catch(e){}
+  return rndPick(ARTIFACT_NAME_LIB.prefix);
+}
+function generateArtifactName(slot, weapon){
+  const pre = inferPrefixByContext();
+  const base = artifactBaseName(slot, weapon);
+  const suf = Math.random() < 0.6 ? rndPick(ARTIFACT_NAME_LIB.suffix) : "";
+  return suf ? `${pre}·${base}${suf}` : `${pre}·${base}`;
+}
+function ensureUniqueName(name){
+  if(!window.__artifactNamePool) window.__artifactNamePool = {};
+  const pool = window.__artifactNamePool;
+  if(!pool[name]){ pool[name]=1; return name; }
+  pool[name]++;
+  const roman = [""," Ⅱ"," Ⅲ"," Ⅳ"," Ⅴ"," Ⅵ"," Ⅶ"," Ⅷ"," Ⅸ"," Ⅹ"];
+  const idx = Math.min(pool[name], roman.length-1);
+  return name + roman[idx];
+}
+//神器命名器------------------------
+  
   const JOB_TREE=[
     {tier:0,key:"Novice", name:"初心者"},
     {tier:1,key:"Warrior", name:"狂刃戰將", weapon:"blade", passive:"武勇", start:["smash"]},
@@ -1110,34 +1166,35 @@ if (game.player.jobBonus) {
       if(d.item && Math.random()<d.rate){ addInv(d.item,1); say(`📖 掉落：<b>${d.item}</b>！`); }
       if(d.equip && Math.random()<d.rate){ addEquipToInv(d.equip,"白"); }
       if(d.mount && Math.random()<d.rate){ addMountToInv(d.mount); say(`🐎 你獲得坐騎：<b>${d.mount}</b>！`); }
-      if(d.artifact && Math.random()<d.rate){
-  const name = `[神器☆${d.baseName}]`;
-
+if(d.artifact && Math.random()<d.rate){
+  // [PATCH] 依部位/武器類型自動命名神器
   // 1) 依槽位生成高白值（你前面已加入的函式）
-  const roll = rollArtifactStatsForSlot();
+  const roll = rollArtifactStatsForSlot(); // => { slot, weapon, stats }
 
-  // 2) 等級縮放（20等後每等 +2%，最多 +60%）
-  const lvl  = (game.player?.lvl || 1);
+  // 2) 產生名稱（依地圖推前綴 + 槽位/武器挑基底 + 去重）
+  const genName  = ensureUniqueName( generateArtifactName(roll.slot, roll.weapon) );
+  const name     = `［神器☆${genName}］`; // 全形中括號，風格與你原本一致
+
+  // 3) 等級縮放（20等後每等 +2%，最多 +60%）
+  const lvl     = (game.player?.lvl || 1);
   const lvScale = 1 + Math.min(0.60, Math.max(0, lvl-20) * 0.02);
   Object.keys(roll.stats).forEach(k=>{
     roll.stats[k] = Math.round(roll.stats[k] * lvScale);
   });
 
-  // 3) 以「神器」倍率生成實例（會套用 invMul 的 2.4）
+  // 4) 以「神器」倍率生成實例（會套用你內部倍率）
   const id   = makeEquipInstance(name, "神器", roll.slot, roll.weapon, roll.stats);
   const inst = getEquipInstance(id);
 
-  // 4) 地板校正：至少 ≥ 橘 × 1.15
+  // 5) 地板校正：至少 ≥ 橘 × 1.15
   (function ensureArtifactFloor(inst){
     const mul = { 白:1, 綠:1.15, 藍:1.3, 黃:1.5, 橘:1.7, 神器:2.4 };
-    // 反推出此神器的「白等價基底」
     const baseWhite = {
       atk: Math.max(0, Math.round(inst.atk / mul["神器"])),
       def: Math.max(0, Math.round(inst.def / mul["神器"])),
       hp : Math.max(0, Math.round(inst.hp  / mul["神器"])),
       mp : Math.max(0, Math.round(inst.mp  / mul["神器"]))
     };
-    // 橘為 1.7，再給 15% 安全係數
     const refMul = mul["橘"] * 1.15;
     const ref = {
       atk: Math.round(baseWhite.atk * refMul),
@@ -1151,12 +1208,14 @@ if (game.player.jobBonus) {
     inst.mp  = Math.max(inst.mp , ref.mp );
   })(inst);
 
-  // 5) 保底 2~3 詞條
+  // 6) 保底 2~3 詞條
   addRandomAffixN(inst, rnd(2,3));
 
+  // 7) 入庫與提示
   addInv(id,1);
   say(`🟣 獲得 <span class="arti-name">${name}</span>（${roll.slot==="weapon"?"武器":roll.slot==="armor"?"防具":"飾品"}｜高素質＋詞條）！`);
 }
+
 
     });
   }
@@ -1183,7 +1242,21 @@ function rollArtifactStatsForSlot() {
       atk: rnd(3,7), def: rnd(2,5), hp: rnd(12,30), mp: rnd(6,18)
     }};
   }
-
+// ===========================================
+// 🟣 相容層：讓 handleDrops() 呼叫到的接口存在
+// 內部直接沿用你現有的 rollArtifactAffix() 結果
+// ===========================================
+function rollArtifactStatsForSlot() {
+  if (typeof rollArtifactAffix === "function") {
+    return rollArtifactAffix(); // 期望回傳 {slot, weapon, stats:{atk,def,hp,mp}}
+  }
+  // 防呆預設
+  const slots = ["weapon","armor","acc"];
+  const slot = slots[Math.floor(Math.random()*slots.length)];
+  const weapon = slot==="weapon" ? ["blade","staff","dagger"][Math.floor(Math.random()*3)] : null;
+  return { slot, weapon, stats:{ atk:5, def:3, hp:20, mp:12 } };
+}
+//===========================================
   /* ========= 背包 / 裝備 / 強化 / 合成 ========= */
   const invDlg=$("#invDlg"), invList=$("#invList"), invFilters=$("#invFilters");
   const invCats=[
@@ -2248,6 +2321,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
