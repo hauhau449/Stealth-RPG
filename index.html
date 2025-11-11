@@ -624,9 +624,19 @@ const XP_SCROLL_RATE = 2.0;
     "幸運戒指":{slot:"acc", qual:"白", atk:1, def:1, hp:0, mp:0},
   };
 
-  const MOUNTS={
-    "戰馬":{spd:10,desc:"移動效率＋，（數值佔位）"},
-  };
+const MOUNTS={
+  // 商店坐騎（保留）
+  "戰馬": { atk:20,  def:20,  hp:500,  mp:500,  spd:12, desc:"穩健耐跑，提供少量四圍＋移動效率" },
+
+  // ⬇⬇⬇ Boss 專屬坐騎（對應 bossMountName(name) => `${name}坐騎`）⬇⬇⬇
+  "火龍坐騎":   { atk:200, def:20,  hp:500, mp:500,  spd:14, desc:"炙熱怒焰，偏攻擊與少量速度" },
+  "暴雪巨靈坐騎": { atk:100,  def:200, hp:2500, mp:500,  spd:12, desc:"寒霜壁障，偏防禦與耐久" },
+  "深淵之眼坐騎": { atk:300,  def:100,  hp:1200, mp:1000,  spd:15, desc:"暗潮凝視，兼顧攻擊與高 MP，速度略快" },
+  "星墜魔像坐騎": { atk:100,  def:500, hp:4000, mp:500,  spd:10, desc:"星核重鎧，極高防禦與血量，偏慢" },
+  "終末領主坐騎": { atk:10000, def:1000, hp:3000, mp:1000, spd:16, desc:"終焉權威，全面強化；最稀有" }
+};
+
+
 
   // 商店目錄
   const shopCatalog=[
@@ -910,7 +920,14 @@ let addHp=0, addMp=0, addAtk=0, addDef=0;
       const inst = getEquipInstance(n);
       if(inst){ addHp+=inst.hp||0; addMp+=inst.mp||0; addAtk+=inst.atk||0; addDef+=inst.def||0; }
     });
+// 把坐騎（M#）也算進四圍加總
+const mid = p.equip.mount;
+if(mid){
+  const m = getMountInstance(mid);
+  if(m){ addHp += m.hp||0; addMp += m.mp||0; addAtk += m.atk||0; addDef += m.def||0; }
+}
 
+    
     p.maxhp = baseMaxHp + addHp;
     p.maxmp = baseMaxMp + addMp;
     p.atk = baseAtk + addAtk;
@@ -969,9 +986,14 @@ if (game.player.jobBonus) {
   }
   function renderEquipSlots(){
     const show = (slot) => {
-      const id = game.player.equip[slot];
-      const el = $("#equip-"+slot);
-      el.textContent = id ? displayEquipName(id) : (slot==="mount"?"（無）":"（空）");
+     const id = game.player.equip[slot];
+const el = $("#equip-"+slot);
+if(id){
+  el.textContent = (slot === "mount") ? displayInvName(id) : displayEquipName(id);
+}else{
+  el.textContent = (slot === "mount") ? "（無）" : "（空）";
+}
+
     };
     show("weapon"); show("armor"); show("acc"); show("mount");
   }
@@ -1314,8 +1336,12 @@ if(next && (game.inv[name]||0) >= 2){
         const sk=SKILL[skillId]; extra=`｜學習/升級：${sk?sk.name:"未知"}`;
         right.append(btn("閱讀",()=>{ useBook(name); renderInventoryList(); }));
       }else if(meta.type==="mount"){
-        right.append(btn("裝備坐騎",()=>{ equipMount(name); renderInventoryList(); }));
-      }
+  const m = getMountInstance(name);
+  const mAtk = m?.atk||0, mDef = m?.def||0, mHp = m?.hp||0, mMp = m?.mp||0, mSpd = m?.spd||0;
+  extra = `｜ATK ${mAtk} DEF ${mDef} HP ${mHp} MP ${mMp} SPD ${mSpd}`;
+  right.append(btn("裝備坐騎",()=>{ equipMount(name); renderInventoryList(); }));
+}
+
       // 販售
       right.append(btn("販售",()=>sellSingle(name)));
       row.innerHTML=`<div>${lineTitle} <span class="tag">${extra}</span></div>`;
@@ -1445,9 +1471,22 @@ function calcSkillBooksNeeded(curLv){
     EQUIP_DB[inst.id]=inst; return inst.id;
   }
   function addMountToInv(name){
-    const inst={ id:"M#"+Math.random().toString(36).slice(2), name, spd:10 };
-    MOUNT_DB[inst.id]=inst; addInv(inst.id,1);
-  }
+  const tpl = MOUNTS[name] || {};
+  const inst = {
+    id: "M#" + Math.random().toString(36).slice(2),
+    name,
+    // 坐騎四圍加成
+    atk: tpl.atk || 0,
+    def: tpl.def || 0,
+    hp:  tpl.hp  || 0,
+    mp:  tpl.mp  || 0,
+    spd: tpl.spd || 0,
+    desc: tpl.desc || ""
+  };
+  MOUNT_DB[inst.id] = inst;
+  addInv(inst.id, 1);
+}
+
   const EQUIP_DB={}; const MOUNT_DB={};
   function getEquipInstance(id){ return EQUIP_DB[id]; }
   function getMountInstance(id){ return MOUNT_DB[id]; }
@@ -1514,12 +1553,23 @@ function calcSkillBooksNeeded(curLv){
     render();
   }
   function equipMount(id){
-    const inst=getMountInstance(id); if(!inst) return;
-    const old=game.player.equip.mount;
-    if(old){ addInv(old,1); say(`你卸下了坐騎 <b>${displayInvName(old)}</b>。`); }
-    game.player.equip.mount=id; decInv(id,1); say(`你騎上了 <b>${inst.name}</b>！`);
-    render();
+  const inst = getMountInstance(id); if(!inst) return;
+  const old = game.player.equip.mount;
+
+  if(old){
+    addInv(old,1);
+    applyMountMod(old, -1);               // 先撤銷舊坐騎加成
+    say(`你卸下了坐騎 <b>${displayInvName(old)}</b>。`);
   }
+
+  game.player.equip.mount = id;
+  decInv(id,1);
+  applyMountMod(id, +1);                   // 套用新坐騎加成
+  say(`你騎上了 <b>${inst.name}</b>！`);
+
+  render();
+}
+
   function applyEquipMod(id,sign){
     const inst=getEquipInstance(id); if(!inst) return;
     const p=game.player;
@@ -1529,7 +1579,20 @@ function calcSkillBooksNeeded(curLv){
     p.maxmp += sign*(inst.mp||0);
     p.hp = clamp(p.hp,1,p.maxhp); p.mp=clamp(p.mp,0,p.maxmp);
   }
+//套用坐騎加成函數
+  function applyMountMod(id, sign){
+  const m = getMountInstance(id); if(!m) return;
+  const p = game.player;
+  p.atk   += sign * (m.atk || 0);
+  p.def   += sign * (m.def || 0);
+  p.maxhp += sign * (m.hp  || 0);
+  p.maxmp += sign * (m.mp  || 0);
+  // 夾回合法區間
+  p.hp = clamp(p.hp, 1, p.maxhp);
+  p.mp = clamp(p.mp, 0, p.maxmp);
+}
 
+  
   // 合成（同名裝備 ×3 → 下一品質；上限藍）
   function combineEquip(id,need){
     const inst=getEquipInstance(id); if(!inst) return;
@@ -1831,7 +1894,11 @@ function addRandomAffixN(inst, n){
       const row=document.createElement("div"); row.className="row";
       let desc="";
       if(s.type==="equip"){ const tpl=EQUIPS[s.name]; desc=`｜白品｜ATK ${tpl.atk||0} DEF ${tpl.def||0} HP ${tpl.hp||0} MP ${tpl.mp||0}`; }
-      if(s.type==="mount"){ desc="｜坐騎（移動效率）"; }
+      if(s.type==="mount"){
+      const tpl = MOUNTS[s.name] || {};
+      desc = `｜坐騎｜ATK ${tpl.atk||0} DEF ${tpl.def||0} HP ${tpl.hp||0} MP ${tpl.mp||0}｜SPD ${tpl.spd||0}`;
+      }
+
       if(s.type==="consum"){ desc=`｜消耗品${s.name==="經驗加倍捲"?"（5 日加倍，可疊加）":""}`; }
       row.innerHTML=`<div><b>${s.name}</b> <span class="tag">${desc}</span><br><span class="tag">價格：${s.price}G｜庫存：${s.qty}</span></div>`;
       const buyBtn=btn("購買",()=>buyFromShop(s));
@@ -2316,6 +2383,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
