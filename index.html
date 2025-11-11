@@ -1020,63 +1020,104 @@ function nextPotionName(name){
   function bossArtifactName(name){ return `${name}之核`; }
 
   /* ========= 角色計算 ========= */
-  function recomputeStats(applyPassives=false){
-    const p=game.player;
-   let baseMaxHp=32 + (p.lvl-1)*2;
-let baseMaxMp=12 + Math.floor((p.lvl-1)*1.2);
-let baseAtk=6 + Math.floor((p.lvl-1)*0.8);
-let baseDef=2 + Math.floor((p.lvl-1)*0.6);
+// === 白板核心設定（職業底值 + 等級成長 + 轉職/轉生倍率 + 被動） ===
 
-// ★ 轉生常駐加成（每次轉生基礎四圍各 +10，會永久套用）
-const rb = p.rebirths || 0;
-baseMaxHp += 10 * rb;
-baseMaxMp += 10 * rb;
-baseAtk   += 10 * rb;
-baseDef   += 10 * rb;
+// 1) 職業底值（不穿裝、不吃技能）——可依你遊戲職業調
+const JOB_BASE = {
+  Novice: { atk: 6,  def: 2,  hp: 32, mp: 12 },
+  Warrior:{ atk: 9,  def: 4,  hp: 40, mp: 10 },
+  Rogue:  { atk: 10, def: 3,  hp: 34, mp: 12 },
+  Mage:   { atk: 5,  def: 2,  hp: 28, mp: 18 },
+  Priest: { atk: 6,  def: 3,  hp: 30, mp: 20 }
+};
 
-
-let addHp=0, addMp=0, addAtk=0, addDef=0;
-
-
-    Object.values(p.equip).forEach(n=>{
-      if(!n) return;
-      const inst = getEquipInstance(n);
-      if(inst){ addHp+=inst.hp||0; addMp+=inst.mp||0; addAtk+=inst.atk||0; addDef+=inst.def||0; }
-    });
-// 把坐騎（M#）也算進四圍加總
-const mid = p.equip.mount;
-if(mid){
-  const m = getMountInstance(mid);
-  if(m){ addHp += m.hp||0; addMp += m.mp||0; addAtk += m.atk||0; addDef += m.def||0; }
+// 2) 等級成長（白板）——只加在白板階段
+function levelGrowth(lvl){
+  return {
+    atk: 2 * (lvl - 1),
+    def: 1 * (lvl - 1),
+    hp:  5 * (lvl - 1),
+    mp:  3 * (lvl - 1)
+  };
 }
 
-    
-    p.maxhp = baseMaxHp + addHp;
-    p.maxmp = baseMaxMp + addMp;
-    p.atk = baseAtk + addAtk;
-    p.def = baseDef + addDef;
-    p.hp = clamp(p.hp,1,p.maxhp);
-    p.mp = clamp(p.mp,0,p.maxmp);
-    // === 轉職屬性獎勵：在基礎+裝備之後套用 ===
-if (game.player.jobBonus) {
-  const jb = game.player.jobBonus;
-  // 只在最大值/基礎屬性上加成
-  p.maxhp = Math.floor(p.maxhp * (1 + (jb.hp  || 0)));
-  p.maxmp = Math.floor(p.maxmp * (1 + (jb.mp  || 0)));
-  p.atk   = Math.floor(p.atk   * (1 + (jb.atk || 0)));
-  p.def   = Math.floor(p.def   * (1 + (jb.def || 0)));
-  // 依加成後的最大值重新夾範圍
-  p.hp = clamp(p.hp, 1, p.maxhp);
-  p.mp = clamp(p.mp, 0, p.maxmp);
+// 3) 轉職/轉生倍率：只吃白板（不要乘到裝備）
+function tierMultiplier(tier){ return 1 + 0.12 * (tier||0); }   // 每轉 +12%
+function rebirthMultiplier(r){ return 1 + 0.20 * (r||0); }       // 每轉生 +20%
+
+// 4) 被動（白板層）——如需更強可在此讀 p.learned 決定加法/乘法
+function passiveFromSkills(p){
+  return { add:{atk:0,def:0,hp:0,mp:0}, mul:{atk:0,def:0,hp:0,mp:0} };
 }
+  
+function recomputeStats(applyPassives=false){
+  const p = game.player;
 
+  // （A）白板：職業底值 + 等級成長
+  const jb = JOB_BASE[p.job] || JOB_BASE.Novice;
+  const lg = levelGrowth(p.lvl||1);
+  let core = {
+    atk: (jb.atk||0) + lg.atk,
+    def: (jb.def||0) + lg.def,
+    hp:  (jb.hp ||0) + lg.hp,
+    mp:  (jb.mp ||0) + lg.mp
+  };
 
-    if(applyPassives){
-      Object.entries(p.learned||{}).forEach(([id,lv])=>{
-        const sk=SKILL[id]; if(sk && sk.type==="被動"){ sk.passive(p,lv||1); }
-      });
-    }
+  // （B）轉職/轉生：只吃白板
+  const mulTier = tierMultiplier(p.tier||0);
+  const mulReb  = rebirthMultiplier(p.rebirths||0);
+  core.atk = Math.floor(core.atk * mulTier * mulReb);
+  core.def = Math.floor(core.def * mulTier * mulReb);
+  core.hp  = Math.floor(core.hp  * mulTier * mulReb);
+  core.mp  = Math.floor(core.mp  * mulTier * mulReb);
+
+  // （C）職業獎勵（你原本的 p.jobBonus 參數）——也只乘在白板
+  if (game.player.jobBonus){
+    const jbMul = game.player.jobBonus; // 內容是「加多少倍率」，如 1.10 表「+110%」→ 這裡當作 1.10 使用
+    core.hp  = Math.floor(core.hp  * (1 + (jbMul.hp  || 0)));
+    core.mp  = Math.floor(core.mp  * (1 + (jbMul.mp  || 0)));
+    core.atk = Math.floor(core.atk * (1 + (jbMul.atk || 0)));
+    core.def = Math.floor(core.def * (1 + (jbMul.def || 0)));
   }
+
+  // （D）被動技能（白板層）
+  const pas = passiveFromSkills(p);
+  core.atk = Math.floor( (core.atk + (pas.add.atk||0)) * (1 + (pas.mul.atk||0)) );
+  core.def = Math.floor( (core.def + (pas.add.def||0)) * (1 + (pas.mul.def||0)) );
+  core.hp  = Math.floor( (core.hp  + (pas.add.hp ||0)) * (1 + (pas.mul.hp ||0)) );
+  core.mp  = Math.floor( (core.mp  + (pas.add.mp ||0)) * (1 + (pas.mul.mp ||0)) );
+
+  // （E）最後才把裝備/坐騎的屬性疊上去
+  let addHp=0, addMp=0, addAtk=0, addDef=0;
+  ["weapon","armor","acc"].forEach(slot=>{
+    const n = p.equip[slot];
+    if(!n) return;
+    const inst = getEquipInstance(n);
+    if(inst){ addHp+=inst.hp||0; addMp+=inst.mp||0; addAtk+=inst.atk||0; addDef+=inst.def||0; }
+  });
+  const mid = p.equip.mount;
+  if(mid){
+    const m = getMountInstance(mid);
+    if(m){ addHp+=m.hp||0; addMp+=m.mp||0; addAtk+=m.atk||0; addDef+=m.def||0; }
+  }
+
+  // 依舊 HP/MP 百分比過渡（避免突滿或見底）
+  const prevMaxHp = p.maxhp||1, prevMaxMp = p.maxmp||1;
+  const hpRate = Math.max(0, Math.min(1, (p.hp||prevMaxHp) / prevMaxHp ));
+  const mpRate = Math.max(0, Math.min(1, (p.mp||prevMaxMp) / prevMaxMp ));
+
+  p.maxhp = Math.max(1, core.hp + addHp);
+  p.maxmp = Math.max(0, core.mp + addMp);
+  p.atk   = Math.max(0, core.atk + addAtk);
+  p.def   = Math.max(0, core.def + addDef);
+
+  p.hp = clamp(Math.floor(p.maxhp * hpRate), 1, p.maxhp);
+  p.mp = clamp(Math.floor(p.maxmp * mpRate), 0, p.maxmp);
+
+  // （F）如需把坐騎移速記到玩家上（未來可用）
+  p.spdFromMount = 0; // 先不計算移速（你的移速邏輯可之後接）
+}
+
 
   function expNeedForLevel(lvl){
     let base = Math.floor(20 + Math.pow(lvl, 1.4)*3);
@@ -1282,10 +1323,17 @@ if(id){
     const p=game.player; p.exp+=v;
     while(p.exp>=expNeedForLevel(p.lvl)){
       p.exp -= expNeedForLevel(p.lvl);
-      p.lvl++;
-      const hpGain=rnd(4,7), mpGain=rnd(1,3), atkGain=rnd(1,2), defGain=rnd(0,1);
-      p.maxhp+=hpGain; p.maxmp+=mpGain; p.atk+=atkGain; p.def+=defGain; p.hp=p.maxhp; p.mp=p.maxmp;
-      say(`🎉 升級到 <b>Lv.${p.lvl}</b>！HP+${hpGain}, MP+${mpGain}, 攻+${atkGain}, 防+${defGain}。`);
+const before = { maxhp:p.maxhp, maxmp:p.maxmp, atk:p.atk, def:p.def };
+p.lvl++;
+recomputeStats(false);
+const dhp  = p.maxhp - before.maxhp;
+const dmp  = p.maxmp - before.maxmp;
+const datk = p.atk   - before.atk;
+const ddef = p.def   - before.def;
+// 滿血/滿魔（可改成保留比例，依你的遊戲手感）
+p.hp = p.maxhp; p.mp = p.maxmp;
+say(`🎉 升級到 <b>Lv.${p.lvl}</b>！HP ${dhp>=0?"+":""}${dhp}, MP ${dmp>=0?"+":""}${dmp}, 攻 ${datk>=0?"+":""}${datk}, 防 ${ddef>=0?"+":""}${ddef}。`);
+
       checkUnlocks();
       if(p.lvl%10===0) refreshQuestsForLevel(p.lvl);
     }
@@ -1662,36 +1710,37 @@ function calcSkillBooksNeeded(curLv){
     return __orig_displayInvName ? __orig_displayInvName(k) : k;
   };
 
-  function equipItem(id){
-    const inst = getEquipInstance(id); if(!inst) return;
-    const allowed = JOB_WEAPON[game.player.job]||[];
-    if(inst.slot==="weapon" && inst.weapon && !allowed.includes(inst.weapon)){
-      return say(`❌ 你的職業 <b>${jobName(game.player.job)}</b> 不能裝備此武器類型。`);
-    }
-    const slot=inst.slot; const old=game.player.equip[slot];
-    if(old){ addInv(old,1); applyEquipMod(old,-1); say(`你卸下了 <b>${displayEquipName(old)}</b>。`); }
-    game.player.equip[slot]=id; applyEquipMod(id,+1);
-    decInv(id,1);
-    say(`你裝備了 <b>${displayEquipName(id)}</b>。`);
-    render();
+ function equipItem(id){
+  const inst = getEquipInstance(id); if(!inst) return;
+  const allowed = JOB_WEAPON[game.player.job]||[];
+  if(inst.slot==="weapon" && inst.weapon && !allowed.includes(inst.weapon)){
+    return say(`❌ 你的職業 <b>${jobName(game.player.job)}</b> 不能裝備此武器類型。`);
   }
-  function equipMount(id){
+  const slot=inst.slot; const old=game.player.equip[slot];
+  if(old){ addInv(old,1); say(`你卸下了 <b>${displayEquipName(old)}</b>。`); }
+  game.player.equip[slot]=id;
+  decInv(id,1);
+  say(`你裝備了 <b>${displayEquipName(id)}</b>。`);
+  recomputeStats(false); render();
+}
+
+ function equipMount(id){
   const inst = getMountInstance(id); if(!inst) return;
-  const old = game.player.equip.mount;
+  const p = game.player;
+  const old = p.equip.mount;
 
   if(old){
     addInv(old,1);
-    applyMountMod(old, -1);               // 先撤銷舊坐騎加成
     say(`你卸下了坐騎 <b>${displayInvName(old)}</b>。`);
   }
 
-  game.player.equip.mount = id;
+  p.equip.mount = id;
   decInv(id,1);
-  applyMountMod(id, +1);                   // 套用新坐騎加成
   say(`你騎上了 <b>${inst.name}</b>！`);
 
-  render();
+  recomputeStats(false); render();
 }
+
 
   function applyEquipMod(id,sign){
     const inst=getEquipInstance(id); if(!inst) return;
@@ -2554,6 +2603,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
