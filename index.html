@@ -822,8 +822,8 @@ function nextPotionName(name){
     base.hp = Math.round(base.hp*3.5);
     base.atk = Math.round(base.atk*1.6);
     base.def = Math.round(base.def*1.4);
-    base.drops.push({mount: bossMountName(name), rate:0.05});
-    base.drops.push({artifact: true, rate:0.005, baseName: bossArtifactName(name)});
+    base.drops.push({mount: bossMountName(name), rate:0.05}); //坐騎掉落率
+    base.drops.push({artifact: true, rate:0.005, baseName: bossArtifactName(name)}); //神器掉落率
     base.drops.push({item:"秘傳：萬斬",rate:0.10});
     return [{ name, base, isBoss:true }];
   }
@@ -1160,6 +1160,22 @@ if (game.player.jobBonus) {
 
     });
   }
+  // ===========================================
+// 🟣 相容層：讓 handleDrops() 呼叫到的接口存在
+// 內部直接沿用你現有的 rollArtifactAffix() 結果
+// ===========================================
+function rollArtifactStatsForSlot() {
+  // 你原本已定義的產生器：回傳 { slot, weapon, stats:{atk,def,hp,mp} }
+  if (typeof rollArtifactAffix === "function") {
+    return rollArtifactAffix();
+  }
+  // 防呆：萬一未載入，給一組安全的預設
+  const slots = ["weapon","armor","acc"];
+  const slot = slots[Math.floor(Math.random()*slots.length)];
+  const weapon = slot==="weapon" ? ["blade","staff","dagger"][Math.floor(Math.random()*3)] : null;
+  return { slot, weapon, stats:{ atk:5, def:3, hp:20, mp:12 } };
+}
+
   function rollArtifactAffix(){
     const slots=["weapon","armor","acc"]; const slot=slots[rnd(0,slots.length-1)];
     const weapon = slot==="weapon" ? ["blade","staff","dagger"][rnd(0,2)] : null;
@@ -1644,7 +1660,44 @@ if (qualBoost[next]) {
     const val = rnd(pick.min, pick.max);
     inst.affix.push({key:pick.key,val});
   }
+// ===========================================
+// [PATCH] 批量抽詞綴：連續呼叫 addRandomAffix N 次
+// 放置位置：建議貼在 addRandomAffix(inst) 定義「後面」
+// ===========================================
+function addRandomAffixN(inst, n){
+  n = (n|0);
+  if (n <= 0) return;
 
+  if (typeof addRandomAffix === "function"){
+    for (let i = 0; i < n; i++) addRandomAffix(inst);
+    return;
+  }
+
+  // ---- 安全後備：萬一你的專案沒有定義 addRandomAffix() ----
+  if (!inst.affixes) inst.affixes = [];
+  const pool = Object.keys(window.AFFIX_LIB || {});
+  for (let i = 0; i < n; i++){
+    // 避免重複同 key 詞綴（依你的結構微調）
+    const cand = pool.filter(k => !inst.affixes.some(a => a.key === k));
+    if (!cand.length) break;
+
+    const key = cand[Math.floor(Math.random() * cand.length)];
+    const roll = (window.AFFIX_LIB || {})[key];
+    let val = 1;
+
+    if (typeof roll === "function") {
+      // 若你的詞綴是函式型，給它 inst 讓它能依裝備狀態滾值
+      val = roll(inst);
+    } else if (roll && typeof roll.min === "number" && typeof roll.max === "number") {
+      val = Math.floor(Math.random() * (roll.max - roll.min + 1)) + roll.min;
+    }
+    inst.affixes.push({ key, val });
+  }
+}
+
+
+
+  
   // 傷害修飾
   function effectiveEnemyDef(e,p){
     const w = getEquippedWithAffix(p);
@@ -2195,6 +2248,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
