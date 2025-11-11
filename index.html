@@ -181,6 +181,35 @@ dialog{
 .stat .pct.mid{ color: var(--gold); }
 .stat .pct.low{ color: var(--bad); font-weight:600; }
 
+  /*更新日誌用*/  
+  #updateLog {
+  background: var(--card);
+  border: 1px solid var(--dash);
+  border-radius: 12px;
+  margin: 12px auto;
+  padding: 10px 14px;
+  color: var(--fg);
+  font-size: 14px;
+}
+#updateLog .log-header {
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+}
+#updateLog .log-body {
+  margin-top: 8px;
+  border-top: 1px solid var(--dash);
+  padding-top: 8px;
+}
+#updateLog .log-date {
+  color: var(--accent);
+  font-size: 13px;
+}
+#updateLog .log-content {
+  line-height: 1.5;
+  font-size: 13px;
+}
+
 </style>
 </head>
 <body>
@@ -390,6 +419,74 @@ dialog{
   <div class="dlg">
     <h4>❓ 遊戲說明</h4>
     <div class="list" id="helpBox" style="padding:10px"></div>
+    <!-- === 更新日誌 === -->
+<div id="updateLog" class="card" style="margin-top:12px;">
+  <div class="log-header" onclick="toggleUpdateLog()">
+    📜 更新日誌 <span id="logToggle">(點擊展開)</span>
+  </div>
+  <div class="log-body" hidden> 
+
+<!--可複製格式如下-------------------------------------------------------------
+  <div class="log-entry">
+  <div class="log-date">YYYY/MM/DD</div>
+  <div class="log-content">
+    ・這裡是第一條更新內容<br>
+    ・這裡是第二條更新內容<br>
+    ・這裡是第三條更新內容<br>
+  </div>
+</div>
+--------------------------------------------------------------------可複製格式-->
+ <!-- ⬇⬇⬇ 之後每一筆更新就放在這裡 ⬇⬇⬇ -->
+ <!-- ⬇⬇⬇ 待處理項目如下 ⬇⬇⬇ -->
+  <div class="log-entry">
+  <div class="log-date">待處理項目</div>
+  <div class="log-content">
+    ・商店批量購買功能。<br>
+    ・商店補貨機制優化。<br>
+    ・職業更新。<br>
+    ・玩家素質(戰力)合理化。<br>
+    ・支援手機介面遊玩。<br>
+    ・背包預覽處可點擊使用。<br>
+    ・地圖重新調整。<br>
+  </div>
+</div>
+<!-- ⬇⬇⬇ 11/11更新如下 ⬇⬇⬇ -->
+    <div class="log-entry">
+      <div class="log-date">2025/11/11</div>
+      <div class="log-content">
+        ・新增 Boss 專屬坐騎素質（火龍、暴雪巨靈、深淵之眼、星墜魔像、終末領主）。<br>
+        ・點擊裝備欄的坐騎可查看素質。<br>
+        ・背包顯示坐騎 ATK/DEF/HP/MP/SPD。<br>
+        ・修復轉職後不能穿裝。<br>
+        ・神器修正掉落。<br>
+        ・自動吃藥水優化。<br>
+      </div>
+    </div>
+    <!-- ⬇⬇⬇ 11/10更新如下 ⬇⬇⬇ -->
+    <div class="log-entry">
+      <div class="log-date">2025/11/10</div>
+      <div class="log-content">
+        ・顯示血量/魔力百分比%數。<br>
+        ・修復掛機無限釋放技能。<br>
+        ・新增存檔提示。<br>
+        ・修改休息回復量為20~80%。<br>
+      </div>
+    </div>
+      <!-- ⬇⬇⬇ 11/9更新如下 ⬇⬇⬇ -->
+    <div class="log-entry">
+      <div class="log-date">2025/11/09</div>
+      <div class="log-content">
+        ・創建遊戲。<br>
+        ・新增200等轉生功能。<br>
+        ・修復掛機沒MP不會普攻。<br>
+        ・修正強化機率。<br>
+        ・修改技能書需求量，合理化。<br>
+        ・修復逃跑成功=勝利。<br>
+      </div>
+    </div>
+  </div>
+</div>
+
     <div class="row" style="justify-content:flex-end;margin-top:8px">
       <button class="btn small" id="closeHelp">關閉</button>
     </div>
@@ -462,6 +559,20 @@ dialog{
 </script>
 
 <script>
+  function toggleUpdateLog(){
+  const body = document.querySelector('#updateLog .log-body');
+  const toggle = document.getElementById('logToggle');
+  if(!body) return;
+  const hidden = body.hasAttribute('hidden');
+  if(hidden){
+    body.removeAttribute('hidden');
+    toggle.textContent = "(點擊收合)";
+  }else{
+    body.setAttribute('hidden','');
+    toggle.textContent = "(點擊展開)";
+  }
+}
+
 (function(){
   const $=s=>document.querySelector(s), LKEY="stealth_rpg_full_v4";
   const log=$("#log"), statsBox=$("#stats"), invBox=$("#inv");
@@ -2383,6 +2494,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
