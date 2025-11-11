@@ -2025,53 +2025,48 @@ function addRandomAffixN(inst, n){
       say("🛑 掛機已關閉。");
     }
   }
-  function afkTick(){
-  // ✅ 防呆：戰鬥旗標與敵人實體不同步時，立即結束戰鬥，避免技能空放
-  if(game.state.inBattle && (!game.state.enemy || game.state.enemy.hp <= 0)){
+  // [FIX] 掛機主迴圈：不在戰鬥時要主動探索；在戰鬥時才打與判定
+function afkTick(){
+  const st = game.state;
+
+  // [FIX] 安全善後：旗標與敵人不同步時，結束戰鬥避免技能空放
+  if(st.inBattle && (!st.enemy || st.enemy.hp <= 0)){
     endBattle(true);
     return;
   }
- // ✅ 沒在戰鬥就不要做任何敵人相關邏輯
-  if(!game.state.inBattle || !game.state.enemy) return;
 
-  if(game.state.inBattle){
-  const p = game.player;
-    const e = game.state.enemy;
-
-   // ✅ 自動用藥（支援小/中/大/特級）
-if( autoUseHeal() ) return;
-if( autoUseMana() ) return;
-
-
-    // ✅ 嘗試主動技能（只有在真的有敵人且存活時才施放）
-    let acted = false;
-    if(p.activeSkill){
-      const id = p.activeSkill, sk = SKILL[id];
-      if(sk && sk.type === "主動" && e && e.hp > 0){
-        const ok = sk.use(p, e, p.learned[id] || 1);
-        if(ok) acted = true;
-      }
-    }
-
-    // ✅ 技能不可用就普攻
-    if(!acted){
-      playerAttack();
-    }
-
-    // ✅ 補上勝負判定（原本 useActiveSkill() 才有，掛機缺少）
-    if(game.state.enemy && game.state.enemy.hp <= 0){
-      endBattle(true);
-      return;
-    }
-
-    // ✅ 補上敵方回合（原本掛機沒呼叫，導致敵人不會動，看起來「沒在打」）
-    enemyTurn();
+  // [FIX] 不在戰鬥 → 立刻探索以觸發新戰鬥
+  if(!st.inBattle){
+    explore();
     return;
   }
 
-  // 不在戰鬥中 → 探索以觸發戰鬥
-  explore();
+  // 執行到這裡代表「正在戰鬥」且有敵人
+  const p = game.player;
+  const e = st.enemy;
+  if(!e){ 
+    // 理論上不會到這，但保險
+    endBattle(false);
+    return;
+  }
+
+  // ✅ 自動用藥（支援小/中/大/特級）與回魔
+  if( autoUseHeal() ) return;
+  if( autoUseMana() ) return;
+
+  // ✅ 自動釋放主動技能（沿用你原本的技能邏輯）
+  useActiveSkill();
+
+  // ✅ 勝負判定
+  if(st.enemy && st.enemy.hp <= 0){
+    endBattle(true);
+    return;
+  }
+
+  // ✅ 敵方回合
+  enemyTurn();
 }
+
 
   
 // ==========================
@@ -2321,6 +2316,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
