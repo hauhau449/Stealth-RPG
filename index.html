@@ -481,9 +481,13 @@ dialog{
     {tier:4,key:"Paladin", name:"聖光裁決", weapon:"blade", passive:"祈護", start:["smite"]},
   ];
   const JOB_WEAPON={
-    Novice:["blade","staff","dagger"],
-    Warrior:["blade"], Mage:["staff"], Rogue:["dagger"], Paladin:["blade"]
-  };
+  Novice:["blade","staff","dagger"],
+  Warrior:["blade"], 
+  Mage:["staff"], 
+  Rogue:["dagger"], 
+  Paladin:["blade","staff","dagger"] // ✅ 最終職全武器相容
+};
+
 
   // 技能
   const SKILL={
@@ -2168,6 +2172,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
