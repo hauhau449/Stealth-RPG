@@ -472,6 +472,7 @@ dialog{
         ・修復轉職後不能穿裝。<br>
         ・神器修正掉落。<br>
         ・自動吃藥水優化。<br>
+        ・玩家基礎素質調整。<br>
       </div>
     </div>
     <!-- ⬇⬇⬇ 11/10更新如下 ⬇⬇⬇ -->
@@ -1042,8 +1043,8 @@ function levelGrowth(lvl){
 }
 
 // 3) 轉職/轉生倍率：只吃白板（不要乘到裝備）
-function tierMultiplier(tier){ return 1 + 0.12 * (tier||0); }   // 每轉 +12%
-function rebirthMultiplier(r){ return 1 + 0.20 * (r||0); }       // 每轉生 +20%
+function tierMultiplier(tier){ return 1 + 0.02 * (tier||0); }   // 每轉 +2%
+function rebirthMultiplier(r){ return 1 + 0.10 * (r||0); }       // 每轉生 +10%
 
 // 4) 被動（白板層）——如需更強可在此讀 p.learned 決定加法/乘法
 function passiveFromSkills(p){
@@ -2603,6 +2604,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
