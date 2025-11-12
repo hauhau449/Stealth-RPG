@@ -9,8 +9,9 @@
     --bg:#0f1115; --fg:#e5e7eb; --muted:#94a3b8; --good:#22c55e; --bad:#ef4444; --card:#111827;
     --btn:#1f2937; --btnh:#374151; --accent:#7dd3fc; --cyan:#22d3ee; --gold:#eab308; --violet:#a78bfa;
     --panel:#0b1220; --dash:#334155;
-    /* 品質色 */
-    --q-white:#e5e7eb; --q-green:#34d399; --q-blue:#60a5fa; --q-yellow:#facc15; --q-orange:#fb923c; --q-arti:#a78bfa;
+      /* 品質色 */
+  --q-white:#e5e7eb; --q-green:#34d399; --q-blue:#60a5fa; --q-yellow:#facc15; --q-orange:#fb923c; --q-purple:#a78bfa; --q-arti-red:#ef4444;
+
   }
   html,body{height:100%;margin:0}
   body{background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",sans-serif}
@@ -68,8 +69,8 @@
   .tab{padding:6px 10px;border-radius:8px;border:1px solid #0005;background:var(--panel);cursor:pointer}
   .tab.active{outline:2px solid var(--accent)}
   .q-white{color:var(--q-white)} .q-green{color:var(--q-green)} .q-blue{color:var(--q-blue)}
-  .q-yellow{color:var(--q-yellow)} .q-orange{color:var(--q-orange)} .q-arti{color:var(--q-arti)}
-  .arti-name{color:var(--q-arti);font-weight:700}
+  .q-yellow{color:var(--q-yellow)} .q-orange{color:var(--q-orange)} .q-purple{color:var(--q-purple)} .q-arti-red{color:var(--q-arti-red)} .q-arti{color:var(--q-purple)}
+.arti-name{color:var(--q-arti-red);font-weight:700}
 
   /* =============================== */
   /* [ADD] 對話框 polyfill 外觀與保底樣式 */
@@ -209,6 +210,30 @@ dialog{
   line-height: 1.5;
   font-size: 13px;
 }
+/* 分類方籤 */
+.cat{
+  display:inline-block;
+  font-weight:700;
+  padding:2px 6px;
+  border-radius:8px;
+  margin-right:8px;
+  background:var(--panel);
+  color:var(--muted);
+  border:1px solid var(--dash);
+  line-height:1;
+}
+
+/* 配色（可依喜好調） */
+.cat-weapon{ color:#60a5fa; }  /* 藍 */
+.cat-armor{  color:#34d399; }  /* 綠 */
+.cat-acc{    color:#f59e0b; }  /* 橘黃 */
+.cat-mount{  color:#a78bfa; }  /* 紫 */
+.cat-book{   color:#eab308; }  /* 金 */
+.cat-consum{ color:#94a3b8; }  /* 灰 */
+
+/* 星數 */
+.star{ font-weight:700; margin-left:2px; }
+
 
 </style>
 </head>
@@ -460,6 +485,17 @@ dialog{
     ・支援手機介面遊玩。<br>
     ・背包預覽處可點擊使用。<br>
     ・地圖重新調整。<br>
+    ・神器碎片待修正。<br>
+    ・背包物品前綴顯示，修復中。<br>
+  </div>
+</div>
+    <!-- ⬇⬇⬇ 11/12更新如下 ⬇⬇⬇ -->
+    <div class="log-entry">
+  <div class="log-date">2025/11/12</div>
+  <div class="log-content">
+    ・裝備品階重修制定:白>綠>藍>黃>橘>紫。獨立品階-神器(紅色)。<br>
+    ・裝備強化機制重新調整，紫品與神器新增升☆機制<br>
+    ・神器掉落調整，BOSS掉落神器碎片，5片可合成神器，新增神器強化成功率道具<br>
   </div>
 </div>
 <!-- ⬇⬇⬇ 11/11更新如下 ⬇⬇⬇ -->
@@ -594,9 +630,97 @@ dialog{
 
   /* ========= 常數與資料 ========= */
   const REBIRTH_LVL = 200;
-  const QUALS=["白","綠","藍","黃","橘","神器"];
-  const QUAL_CLASS=["q-white","q-green","q-blue","q-yellow","q-orange","q-arti"];
-  const QUALITY_ORDER={白:0,綠:1,藍:2,黃:3,橘:4,神器:5};
+ // 正式品階：白>綠>藍>黃>橘>紫（神器獨立）
+const QUALS=["白","綠","藍","黃","橘","紫"];
+const QUAL_CLASS=["q-white","q-green","q-blue","q-yellow","q-orange","q-purple"];
+const QUALITY_ORDER={白:0,綠:1,藍:2,黃:3,橘:4,紫:5};
+
+// === 低階固定素質（依「部位」分別定義，可自行調整） ===
+const FIXED_LOW_TIER = {
+  weapon: { // 白/綠/藍固定值
+    白:{atk:10, def:0,  hp:0,  mp:0},
+    綠:{atk:16, def:1,  hp:0,  mp:2},
+    藍:{atk:22, def:2,  hp:5,  mp:4}
+  },
+  armor: {
+    白:{atk:0,  def:6,  hp:30, mp:0},
+    綠:{atk:0,  def:9,  hp:45, mp:2},
+    藍:{atk:0,  def:12, hp:60, mp:4}
+  },
+  acc:{
+    白:{atk:2,  def:2,  hp:10, mp:6},
+    綠:{atk:3,  def:3,  hp:15, mp:8},
+    藍:{atk:4,  def:4,  hp:20, mp:10}
+  }
+};
+// === 強化規則定義 ===
+// 每 +1 的素質增量
+const PLUS_DELTA = {
+  藍:{atk:2,  def:1,  hp:5,  mp:3},
+  黃:{atk:4,  def:2,  hp:10, mp:6},
+  橘:{atk:8,  def:4,  hp:20, mp:12},
+  紫:{atk:10, def:6,  hp:30, mp:20},
+  神器:{atk:25, def:15, hp:80, mp:50} // 神器獨立用
+};
+
+// 強化成功率（依品階、星數段）
+const ENH_RATE = {
+  藍:   p => (p<=5?0.95 : 0.90),
+  黃:   p => (p<=5?0.85 : 0.80),
+  橘:   p => (p<=5?0.75 : 0.70),
+  紫:   (p,stars)=> {
+    if(stars===0) return (p<=5?0.70:0.65);
+    if(stars===1) return 0.65;
+    if(stars===2) return 0.60;
+    if(stars===3) return 0.55;
+    if(stars===4) return 0.50;
+    if(stars>=5)  return 0.45;
+  },
+  神器:(p,stars)=>{
+    let base;
+    if(stars===0) base = 0.60;
+    if(stars===1) base = 0.55;
+    if(stars===2) base = 0.50;
+    if(stars===3) base = 0.45;
+    if(stars===4) base = 0.40;
+    if(stars>=5)  base = 0.30;
+    // ㄅㄅㄐ之錘每顆 +1%
+    return Math.min(0.99, base + 0.01*(game.buffs?.artiHammer||0));
+  }
+};
+
+// 失敗是否掉階（以及機率）
+const FAIL_BEHAVIOR = {
+  藍:   ()=>({ drop:false, rate:0 }),                          // 不掉
+  黃:   ()=>({ drop:true,  rate:0.20 }),
+  橘:   ()=>({ drop:true,  rate:0.30 }),
+  紫:   (stars)=>({ drop:true, rate: stars===0?0.40 : [0.45,0.50,0.55,0.60,0.65][Math.min(stars,5)-1] }),
+  神器:(stars)=>({ drop:true, rate: stars===0?0.40 : [0.30,0.35,0.40,0.50,0.65][Math.min(stars,5)-1] })
+};
+
+// 升級邏輯：藍/黃/橘 +10 升下一階（弱化詞條*1）；紫 +10 → 星數+1、plus歸0（最多5星）
+function onReachPlusTen(inst){
+  const q = inst.qual;
+  if(q==="藍"){ inst.qual="黃"; inst.plus=0; addWeakAffix(inst,1); return "藍→黃"; }
+  if(q==="黃"){ inst.qual="橘"; inst.plus=0; addWeakAffix(inst,1); return "黃→橘"; }
+  if(q==="橘"){ inst.qual="紫"; inst.plus=0; addWeakAffix(inst,1); inst.stars=0; return "橘→紫"; }
+  if(q==="紫"){
+    inst.stars = Math.min(5,(inst.stars||0)+1);
+    inst.plus  = 0;
+    return `紫升星 → ${inst.stars}☆`;
+  }
+  return "";
+}
+
+// 弱化版詞條（你可在 addRandomAffix 內做弱化處理）
+function addWeakAffix(inst, n=1){
+  for(let i=0;i<n;i++){
+    if(typeof addRandomAffix==="function"){
+      addRandomAffix(inst);
+    }
+  }
+}
+
   
   // =============================
 // 🟣 神器命名器：依部位/武器類型生成名稱
@@ -737,6 +861,12 @@ const XP_SCROLL_RATE = 2.0;
     "技能書：連擊":{type:"book", skill:"flurry"},
     "技能書：猛擊":{type:"book", skill:"smash"},
     "秘傳：萬斬":{type:"book", skill:"omnislash"},
+    "ㄅㄅㄐ之錘":{type:"consum",desc:"神器強化成功率永久+1%（可疊加）。",use:(p)=>{if(!game.buffs) game.buffs={xpLayers:[],artiHammer:0};game.buffs.artiHammer = (game.buffs.artiHammer||0) + 1;
+    decInv("ㄅㄅㄐ之錘",1);
+    say(`🔧 你使用了 ㄅㄅㄐ之錘，神器強化成功率加成：+${game.buffs.artiHammer}%`);
+  }
+},
+
   };
 
   const EQUIPS={
@@ -831,6 +961,35 @@ const MOUNTS={
   };
 
   /* ========= 工具 ========= */
+// ─────────────────────────────
+// 分類標籤：武器/防具/飾品/坐騎/技能書/消耗品
+// ─────────────────────────────
+const SLOT_TAG = { weapon:"武器", armor:"防具", acc:"飾品", mount:"坐騎" };
+
+function categoryTagForKey(k){
+  // 裝備實體（E#...）
+  if(k.startsWith("E#")){
+    const inst = getEquipInstance(k);
+    if(!inst) return `<span class="cat">[裝備]</span>`;
+    const lab = SLOT_TAG[inst.slot] || "裝備";
+    return `<span class="cat cat-${inst.slot}">[${lab}]</span>`;
+  }
+  // 坐騎實體（M#...）
+  if(k.startsWith("M#")){
+    return `<span class="cat cat-mount">[坐騎]</span>`;
+  }
+  // 一般物品：判斷技能書，其餘當消耗品
+  const n = k || "";
+  const isBook = (itemDefs?.[n]?.type === "skillbook") || n.includes("技能書");
+  if(isBook) return `<span class="cat cat-book">[技能書]</span>`;
+  return `<span class="cat cat-consum">[消耗品]</span>`;
+}
+
+// （可選）把「技能書：活力」這種名稱清成「活力」
+function cleanBookName(n){ return n.replace(/^技能書[:：]\s*/,''); }
+
+
+  
   // 可 2 合 1 的藥水鏈（治療 & 魔力）
 const POTION_CHAINS = [
   ["小治療藥水","中治療藥水","大治療藥水","特級治療藥水"],
@@ -928,6 +1087,15 @@ function nextPotionName(name){
   const fmtQual=(q,txt)=>`<span class="${colorQual(q)}">${txt}</span>`;
   const fmtItem=(name,qual)=> qual ? fmtQual(qual,qualName(name,qual)) : name;
   const qualName=(name,qual)=> qual==="神器" ? `[神器☆${name}]` : name;
+// ★ 品質文字旁顯示星數（紫／神器）
+function qualWithStars(inst){
+  const s = inst.stars || 0;
+  const q = inst.qual;
+  if(q === "紫" || q === "神器"){
+    return `${fmtQual(q, q)}${s ? ` <span class="star">${s}☆</span>` : ""}`;
+  }
+  return fmtQual(q, q);
+}
 
   // 裝備詞條
   const AFFIX_LIB=[
@@ -1149,19 +1317,23 @@ function recomputeStats(applyPassives=false){
     $("#runBtn").disabled=!game.state.inBattle;
     renderEnemy(); renderEquipSlots();
   }
-  function renderEquipSlots(){
-    const show = (slot) => {
-     const id = game.player.equip[slot];
-const el = $("#equip-"+slot);
-if(id){
-  el.textContent = (slot === "mount") ? displayInvName(id) : displayEquipName(id);
-}else{
-  el.textContent = (slot === "mount") ? "（無）" : "（空）";
+ function renderEquipSlots(){
+  const show = (slot) => {
+    const id = game.player.equip[slot];
+    const el = $("#equip-"+slot);
+    if(id){
+      if(slot === "mount"){
+        el.textContent = displayInvName(id);     // 坐騎維持純文字
+      }else{
+        el.innerHTML = displayEquipName(id);     // 其他裝備吃顏色（不顯示詞條）
+      }
+    }else{
+      el.textContent = (slot === "mount") ? "（無）" : "（空）";
+    }
+  };
+  show("weapon"); show("armor"); show("acc"); show("mount");
 }
 
-    };
-    show("weapon"); show("armor"); show("acc"); show("mount");
-  }
   function renderEnemy(){
     const e=game.state.enemy;
     if(!e){ enemyUI.name.textContent="—"; enemyUI.lvl.textContent="—"; enemyUI.atk.textContent="—"; enemyUI.def.textContent="—";
@@ -1172,15 +1344,41 @@ if(id){
     enemyUI.mpBar.style.width=`${Math.max(0,Math.round(e.mp/e.maxmp*100))}%`;
   }
   function displayInvName(k){
-    if(k.startsWith("E#")){ const inst=getEquipInstance(k); return inst?fmtItem(inst.name,inst.qual)+(inst.plus?` +${inst.plus}`:"")+affixShort(inst):k; }
-    if(k.startsWith("M#")){ const m=getMountInstance(k); return m?m.name:k; }
-    return k;
+  // 裝備（E#…）
+  if(k.startsWith("E#")){
+    const inst = getEquipInstance(k);
+    if(!inst) return k;
+    const tag = categoryTagForKey(k);
+    const nameHtml = fmtItem(inst.name, inst.qual);
+    const starHtml = (inst.qual==="紫" || inst.qual==="神器") && (inst.stars>0)
+      ? ` <span class="star">${inst.stars}☆</span>` : "";
+    // 背包清單：分類標籤 + 名稱 + +N + 星數 + 詞條
+    return `${tag} ${nameHtml}${inst.plus ? ` +${inst.plus}` : ""}${starHtml}${affixShort(inst)}`;
   }
-  function displayEquipName(id){
-    const inst=getEquipInstance(id); if(!inst) return id;
-    const show = inst.qual==="神器" ? `[神器☆${inst.name}]` : inst.name;
-    return `${show}${inst.plus?` +${inst.plus}`:""}${affixShort(inst)}`;
+
+  // 坐騎（M#…）
+  if(k.startsWith("M#")){
+    const tag = categoryTagForKey(k);
+    const m = getMountInstance(k);
+    return m ? `${tag} ${m.name}` : `${tag} ${k}`;
   }
+
+  // 其他道具（技能書 / 消耗品）
+  const tag = categoryTagForKey(k);
+  const isBook = (itemDefs?.[k]?.type === "skillbook") || k.includes("技能書");
+  return isBook ? `${tag} ${cleanBookName(k)}` : `${tag} ${k}`;
+}
+
+
+function displayEquipName(id){
+  const inst = getEquipInstance(id); if(!inst) return id;
+  const nameHtml = fmtItem(inst.name, inst.qual); // 依品質上色
+  const starHtml = (inst.qual==="紫" || inst.qual==="神器") && (inst.stars>0)
+    ? ` <span class="star">${inst.stars}☆</span>` : "";
+  return `${nameHtml}${inst.plus ? ` +${inst.plus}` : ""}${starHtml}`; // 不附詞條
+}
+
+
   function affixShort(inst){
     if(!inst||!inst.affix||!inst.affix.length) return "";
     const tags = inst.affix.map(a=>{
@@ -1360,57 +1558,53 @@ say(`🎉 升級到 <b>Lv.${p.lvl}</b>！HP ${dhp>=0?"+":""}${dhp}, MP ${dmp>=0?
       if(d.item && Math.random()<d.rate){ addInv(d.item,1); say(`📖 掉落：<b>${d.item}</b>！`); }
       if(d.equip && Math.random()<d.rate){ addEquipToInv(d.equip,"白"); }
       if(d.mount && Math.random()<d.rate){ addMountToInv(d.mount); say(`🐎 你獲得坐騎：<b>${d.mount}</b>！`); }
+// 神器碎片掉落（取代舊的神器直接掉落）
 if(d.artifact && Math.random()<d.rate){
-  // [PATCH] 依部位/武器類型自動命名神器
-  // 1) 依槽位生成高白值（你前面已加入的函式）
-  const roll = rollArtifactStatsForSlot(); // => { slot, weapon, stats }
+  // 1) 生成名稱（若你有 rollArtifactAffix / generateArtifactName 就用；沒有就給預設）
+  const roll = (typeof rollArtifactAffix==="function") ? rollArtifactAffix() : { slot:"weapon", weapon:"blade", stats:{atk:20,def:5,hp:60,mp:20}};
+  const genName  = (typeof ensureUniqueName==="function" && typeof generateArtifactName==="function")
+                    ? ensureUniqueName( generateArtifactName(roll.slot, roll.weapon) )
+                    : "遺忘之核";
+  const fragName = `[神器_${genName}之碎片]`;
 
-  // 2) 產生名稱（依地圖推前綴 + 槽位/武器挑基底 + 去重）
-  const genName  = ensureUniqueName( generateArtifactName(roll.slot, roll.weapon) );
-  const name     = `［神器☆${genName}］`; // 全形中括號，風格與你原本一致
+  // 2) 定義碎片道具（若未定義）
+  if(!itemDefs[fragName]){
+    itemDefs[fragName] = {
+      type:"consum",
+      desc:`${genName} 的神器碎片。收集 5 片可合成完整神器。`,
+      use:(p)=>{
+        const have = game.inv[fragName]||0;
+        if(have>=5){
+          // 消耗5片 → 合成完整神器（基礎=紫 5☆ +0；附3條正常詞條）
+          game.inv[fragName]-=5; if(game.inv[fragName]<=0) delete game.inv[fragName];
 
-  // 3) 等級縮放（20等後每等 +2%，最多 +60%）
-  const lvl     = (game.player?.lvl || 1);
-  const lvScale = 1 + Math.min(0.60, Math.max(0, lvl-20) * 0.02);
-  Object.keys(roll.stats).forEach(k=>{
-    roll.stats[k] = Math.round(roll.stats[k] * lvScale);
-  });
-
-  // 4) 以「神器」倍率生成實例（會套用你內部倍率）
-  const id   = makeEquipInstance(name, "神器", roll.slot, roll.weapon, roll.stats);
-  const inst = getEquipInstance(id);
-
-  // 5) 地板校正：至少 ≥ 橘 × 1.15
-  (function ensureArtifactFloor(inst){
-    const mul = { 白:1, 綠:1.15, 藍:1.3, 黃:1.5, 橘:1.7, 神器:2.4 };
-    const baseWhite = {
-      atk: Math.max(0, Math.round(inst.atk / mul["神器"])),
-      def: Math.max(0, Math.round(inst.def / mul["神器"])),
-      hp : Math.max(0, Math.round(inst.hp  / mul["神器"])),
-      mp : Math.max(0, Math.round(inst.mp  / mul["神器"]))
+          // 你可調整這組（5☆紫+0的基準）
+          const base = {atk:80, def:40, hp:300, mp:180};
+          const id = makeEquipInstance(`[神器_${genName}]`,"紫",roll.slot,roll.weapon,base);
+          const inst=getEquipInstance(id);
+          inst.stars = 5; // 5☆
+          inst.plus  = 0;
+          // 補 3 條正常詞條
+          if(typeof addRandomAffix==="function"){ addRandomAffix(inst); addRandomAffix(inst); addRandomAffix(inst); }
+          say(`🟥 合成完成：<b>${inst.name}</b>（${inst.stars}☆）！`);
+          addInv(id,1);
+          render();
+        }else{
+          say(`🧩 ${fragName}：目前 ${have}/5，尚不足以合成。`);
+        }
+      }
     };
-    const refMul = mul["橘"] * 1.15;
-    const ref = {
-      atk: Math.round(baseWhite.atk * refMul),
-      def: Math.round(baseWhite.def * refMul),
-      hp : Math.round(baseWhite.hp  * refMul),
-      mp : Math.round(baseWhite.mp  * refMul),
-    };
-    inst.atk = Math.max(inst.atk, ref.atk);
-    inst.def = Math.max(inst.def, ref.def);
-    inst.hp  = Math.max(inst.hp , ref.hp );
-    inst.mp  = Math.max(inst.mp , ref.mp );
-  })(inst);
+  }
 
-  // 6) 保底 2~3 詞條
-  addRandomAffixN(inst, rnd(2,3));
-
-  // 7) 入庫與提示
-  addInv(id,1);
-  say(`🟣 獲得 <span class="arti-name">${name}</span>（${roll.slot==="weapon"?"武器":roll.slot==="armor"?"防具":"飾品"}｜高素質＋詞條）！`);
+  // 3) 發一片碎片
+  addInv(fragName,1);
+  say(`🧩 掉落：<b>${fragName}</b>！收集 5 片可合成完整神器。`);
 }
-
-
+// Boss 額外：5% 掉 ㄅㄅㄐ之錘
+if(e.boss && Math.random()<0.05){
+  addInv("ㄅㄅㄐ之錘",1);
+  say("🪓 你獲得 <b>ㄅㄅㄐ之錘</b> ×1（神器強化成功率 +1%）");
+}
     });
   }
   // ===========================================
@@ -1480,7 +1674,7 @@ function rollArtifactStatsForSlot() {
       let extra = "";
       if(meta.type==="equip"){
         const eq=getEquipInstance(name);
-        extra = `｜${fmtQual(eq.qual||"白", eq.qual||"白")}｜ATK ${eq.atk||0} DEF ${eq.def||0} HP ${eq.hp||0} MP ${eq.mp||0}${eq.plus?`｜+${eq.plus}`:""}${affixShort(eq)}`;
+       extra = `｜ATK ${eq.atk||0} DEF ${eq.def||0} HP ${eq.hp||0} MP ${eq.mp||0}${eq.plus?`｜+${eq.plus}`:""}${affixShort(eq)}`;
         right.append(btn("裝備",()=>equipItem(name)));
         // 合成：白→綠→藍（同名 3 件）
         const q=eq.qual||"白";
@@ -1635,13 +1829,20 @@ function calcSkillBooksNeeded(curLv){
     say(`🗡️ 獲得裝備：${fmtItem(baseName,qual)}。`);
   }
   function makeEquipInstance(name,qual,slot,weapon,stats){
-    const mul=[1,1.15,1.3,1.5,1.7,2.0][QUALITY_ORDER[qual]||0];
-    const inst={ id:"E#"+Math.random().toString(36).slice(2), name, qual, slot, weapon:weapon||null,
-      atk:Math.round((stats.atk||0)*mul), def:Math.round((stats.def||0)*mul),
-      hp:Math.round((stats.hp||0)*mul), mp:Math.round((stats.mp||0)*mul),
-      plus:0, affix:[] };
-    EQUIP_DB[inst.id]=inst; return inst.id;
+  let base = {...(stats||{})};
+  // 白/綠/藍 → 改用固定素質（依部位）
+  if (["白","綠","藍"].includes(qual) && FIXED_LOW_TIER[slot] && FIXED_LOW_TIER[slot][qual]){
+    base = {...FIXED_LOW_TIER[slot][qual]};
   }
+  // 黃/橘/紫 → 沿用模板 stats（不再用舊乘數放大；強化時再長）
+  const inst={ id:"E#"+Math.random().toString(36).slice(2), name, qual, slot, weapon:weapon||null,
+    atk:Math.round(base.atk||0), def:Math.round(base.def||0),
+    hp:Math.round(base.hp||0),  mp:Math.round(base.mp||0),
+    plus:0, stars:0, affix:[] };
+  addEquip(inst);
+  return inst.id;
+}
+
   function addMountToInv(name){
   const tpl = MOUNTS[name] || {};
   const inst = {
@@ -1662,6 +1863,13 @@ function calcSkillBooksNeeded(curLv){
   const EQUIP_DB={}; const MOUNT_DB={};
   function getEquipInstance(id){ return EQUIP_DB[id]; }
   function getMountInstance(id){ return MOUNT_DB[id]; }
+
+  // ✅ 註冊裝備實例到資料庫（修補 addEquip 未定義）
+function addEquip(inst){
+  // 防呆：若 EQUIP_DB 尚未存在，先建立
+  if (typeof EQUIP_DB === "undefined") { window.EQUIP_DB = {}; }
+  EQUIP_DB[inst.id] = inst;
+}
 
   /* =============================== */
   /* [FIX] 裝備/坐騎顯示防呆＋自動從存檔還原實例 */
@@ -1885,50 +2093,46 @@ closeMount.onclick = ()=> mountDlg.close();
     const chance = enhChance(inst);
     const cost = enhCost(inst);
     const line = document.createElement("div"); line.className="row";
-    line.innerHTML = `<div>
-      <b>${displayEquipName(enhTargetId)}</b>｜${fmtQual(inst.qual,inst.qual)}｜ATK ${inst.atk} DEF ${inst.def} HP ${inst.hp} MP ${inst.mp}${affixShort(inst)}
-      <br><span class="tag">強化成功率：${Math.round(chance*100)}%｜費用：${cost} G</span>
-      ${!canEnh?`<br><span class="tag">（提示：藍品以上才可強化；請先用合成把白→綠→藍）</span>`:""}
-    </div>`;
+line.innerHTML = `<div>
+${displayEquipName(enhTargetId)}｜${qualWithStars(inst)}｜
+  ATK ${inst.atk} DEF ${inst.def} HP ${inst.hp} MP ${inst.mp}
+  <br><span class="tag affix">${affixShort(inst)}</span>
+  <br><span class="tag">強化成功率：${Math.round(chance*100)}%｜費用：${cost} G</span>
+</div>`;
+
+
     enhInfo.appendChild(line);
+    if(inst.name && inst.name.startsWith("[神器_")){
+  const tip=document.createElement("div");
+  tip.className="hint";
+  tip.innerHTML="（神器強化：每+1 ATK+25 DEF+15 HP+80 MP+50；成功率可被「ㄅㄅㄐ之錘」加成）";
+  enhInfo.appendChild(tip);
+}
+
     enhBtnDo.disabled=!canEnh;
   }
 
   // 成功率表（藍 / 黃 / 橘）
-  function enhChance(inst){
-    const p=inst.plus||0, q=inst.qual;
-    if(q==="藍"){
-      if(p<=3) return 1.00;
-      if(p===4||p===5) return 0.95;
-      if(p===6||p===7) return 0.90;
-      if(p===8||p===9) return 0.85;
-      if(p>=10) return 0.80;
-     }else if(q === "黃"){
-    if(p <= 3) return 0.85;
-    if(p === 4 || p === 5) return 0.80;
-    if(p === 6 || p === 7) return 0.75;
-    if(p === 8) return 0.70;
-    if(p === 9) return 0.65;
-    if(p >= 10) return 0.60;
-    }else if(q === "橘"){
-    if(p <= 3) return 0.70;
-    if(p === 4 || p === 5) return 0.60;
-    if(p === 6 || p === 7) return 0.50;
-    if(p === 8) return 0.45;
-    if(p === 9) return 0.40;
-    if(p >= 10) return 0.30;
-  } else if(q === "神器"){
-    // ★ 新增：神器成功率（更嚴苛）
-    if(p <= 3) return 0.55;
-    if(p === 4 || p === 5) return 0.45;
-    if(p === 6 || p === 7) return 0.35;
-    if(p === 8) return 0.25;
-    if(p === 9) return 0.20;
-    if(p >= 10) return 0.12; // 神器不升品質，只吃里程碑效果
-  } else {
-    return 0; // 白/綠不可強化
-    }
+function enhChance(inst){
+  const p = inst.plus||0;
+  const q = inst.qual;
+  if(q==="紫"){ return ENH_RATE.紫(p, inst.stars||0); }
+  if(q==="藍" || q==="黃" || q==="橘"){ return ENH_RATE[q](p); }
+  // 白/綠不可強化；神器另外分支
+  return 0;
+}
+function failDropChance(inst){
+  const q = inst.qual;
+  if(q==="藍") return 0; // 不掉
+  if(q==="黃") return 0.20;
+  if(q==="橘") return 0.30;
+  if(q==="紫"){
+    const s = inst.stars||0;
+    return (s===0?0.40 : [0.45,0.50,0.55,0.60,0.65][Math.min(s,5)-1]);
   }
+  return 0;
+}
+
   // 失敗降階機率
   function failDropChance(qual){
     if(qual==="藍") return 0.50;
@@ -1937,76 +2141,83 @@ closeMount.onclick = ()=> mountDlg.close();
     if(qual === "神器") return 0.85;   // ★ 新增：神器失敗多半會掉階
     return 1.0;
   }
-  function enhCost(inst){
-    const base=50 + (QUALITY_ORDER[inst.qual]*100);
-    return base + (inst.plus||0)*80;
-  }
-  enhBtnDo.onclick=()=>{
-    const inst=getEquipInstance(enhTargetId); if(!inst) return;
-    const cost=enhCost(inst); if(game.player.gold<cost){ say("金幣不足。"); return; }
-    game.player.gold-=cost;
-    const ch=enhChance(inst);
-    if(Math.random()<ch){
-      inst.plus=(inst.plus||0)+1;
-      inst.atk+=Math.ceil((inst.atk||0)*0.08)+1;
-      inst.def+=Math.ceil((inst.def||0)*0.08);
-      inst.hp +=Math.ceil((inst.hp||0)*0.06)+1;
-      inst.mp +=Math.ceil((inst.mp||0)*0.06);
-      say(`✅ 強化成功！<b>${displayEquipName(enhTargetId)}</b> → +${inst.plus}`);
-      // +10 升品質＆附詞條
-      if(inst.plus>=10 && QUALITY_ORDER[inst.qual]<QUALITY_ORDER["神器"]){
-        const prev=inst.qual;
-        const next = QUALS[QUALITY_ORDER[inst.qual]+1];
-        inst.qual=next; inst.plus=0;
-        // 若剛升到神器，做一次地板校正（同掉落一致）
-if(next === "神器"){
-  const mul = { 白:1, 綠:1.15, 藍:1.3, 黃:1.5, 橘:1.7, 神器:2.4 };
-  const baseWhite = {
-    atk: Math.max(0, Math.round(inst.atk / mul["神器"])),
-    def: Math.max(0, Math.round(inst.def / mul["神器"])),
-    hp : Math.max(0, Math.round(inst.hp  / mul["神器"])),
-    mp : Math.max(0, Math.round(inst.mp  / mul["神器"]))
-  };
-  const refMul = mul["橘"] * 1.15;
-  inst.atk = Math.max(inst.atk, Math.round(baseWhite.atk * refMul));
-  inst.def = Math.max(inst.def, Math.round(baseWhite.def * refMul));
-  inst.hp  = Math.max(inst.hp , Math.round(baseWhite.hp  * refMul));
-  inst.mp  = Math.max(inst.mp , Math.round(baseWhite.mp  * refMul));
+  //強化費用
+ function enhCost(inst){
+  const q=inst.qual, p=inst.plus||0, s=inst.stars||0;
+  const tierCost = {藍:200, 黃:500, 橘:1200, 紫:3000};
+  const starMul  = 1 + 0.5*(s||0); // 紫/神器升星越高費用越貴
+  const base = tierCost[q] || (inst.name?.startsWith("[神器_") ? 4000 : 0);
+  return Math.round((base + p*100) * starMul);
 }
 
-        // 品質升級屬性倍率
-const qualBoost = {
-  "綠": 2,
-  "藍": 3,
-  "黃": 4,
-  "橘": 5,
-  "神器": 10
-};
-if (qualBoost[next]) {
-  inst.atk = Math.floor(inst.atk * qualBoost[next]);
-  inst.def = Math.floor(inst.def * qualBoost[next]);
-  inst.hp  = Math.floor(inst.hp  * qualBoost[next]);
-  inst.mp  = Math.floor(inst.mp  * qualBoost[next]);
-}
+enhBtnDo.onclick=()=>{
+  const inst=getEquipInstance(enhTargetId); if(!inst) return;
+  const cost=enhCost(inst); if(game.player.gold<cost){ say("金幣不足。"); return; }
 
-        // 進階時追加詞條
-        if((prev==="藍" && next==="黃") || (prev==="黃" && next==="橘")){
-          addRandomAffix(inst);
-        }
-        say(`🌈 品質提升為 ${fmtQual(next,next)}！${affixShort(inst)}`);
-      }
-      recomputeStats(false);
-    }else{
-      const dropP = failDropChance(inst.qual);
-      if(Math.random()<dropP){
-        inst.plus=Math.max(0,(inst.plus||0)-1);
-        say(`❌ 強化失敗，降為 +${inst.plus}。`);
+  // 神器規則另外處理（見 Step 6-2）
+  if(inst.name && inst.name.startsWith("[神器_")){
+    // 交給神器分支
+    const p = inst.plus||0, s=inst.stars||0;
+    const rate = ENH_RATE.神器(p,s);
+    game.player.gold -= cost;
+
+    if(Math.random()<rate){
+      inst.plus = p+1;
+      const d = PLUS_DELTA.神器;
+      inst.atk+=d.atk; inst.def+=d.def; inst.hp+=d.hp; inst.mp+=d.mp;
+      if(inst.plus>=10){
+        inst.stars = Math.min(5,s+1);
+        inst.plus=0;
+        say(`🟥 神器升星成功 → ${inst.stars}☆！`);
       }else{
-        say(`❌ 強化失敗，但等級不變（保底）。`);
+        say(`🟥 神器強化成功：+${inst.plus}`);
+      }
+    }else{
+      const fb = FAIL_BEHAVIOR.神器(s);
+      if(Math.random()<fb.rate){
+        inst.plus = Math.max(0, p-1);
+        say(`❌ 神器強化失敗，降為 +${inst.plus}`);
+      }else{
+        say("❌ 神器強化失敗（保級）");
       }
     }
-    renderEnhancePanel(); render(); autosave();
-  };
+    recomputeStats(false); renderEnhancePanel(); render(); autosave();
+    return;
+  }
+
+  if(!["藍","黃","橘","紫"].includes(inst.qual)){ say("此品階不可強化。"); return; }
+
+  game.player.gold-=cost;
+  const ch=enhChance(inst);
+  if(Math.random()<ch){
+    // 成功：+1 並加屬性
+    inst.plus=(inst.plus||0)+1;
+    const delta = PLUS_DELTA[inst.qual];
+    inst.atk += delta.atk;
+    inst.def += delta.def;
+    inst.hp  += delta.hp;
+    inst.mp  += delta.mp;
+
+    if(inst.plus>=10){
+      const progress = onReachPlusTen(inst); // 升階或升星
+      if(progress) say(`🌈 ${progress}！`);
+    } else {
+      say(`✅ 強化成功：<b>+${inst.plus}</b>（${inst.qual}）`);
+    }
+    recomputeStats(false);
+  }else{
+    // 失敗：依規則是否掉階
+    const dropP = failDropChance(inst);
+    if(Math.random()<dropP){
+      inst.plus=Math.max(0,(inst.plus||0)-1);
+      say(`❌ 強化失敗，降為 +${inst.plus}。`);
+    }else{
+      say(`❌ 強化失敗，但等級不變（保底）。`);
+    }
+  }
+  renderEnhancePanel(); render(); autosave();
+};
+
 
   // 詞條追加
   function addRandomAffix(inst){
@@ -2604,6 +2815,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
