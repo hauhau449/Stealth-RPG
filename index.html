@@ -486,7 +486,6 @@ dialog{
     ・背包預覽處可點擊使用。<br>
     ・地圖重新調整。<br>
     ・神器碎片待修正。<br>
-    ・背包物品前綴顯示，修復中。<br>
   </div>
 </div>
      <!-- ⬇⬇⬇ 11/13更新如下 ⬇⬇⬇ -->
@@ -494,7 +493,7 @@ dialog{
   <div class="log-date">2025/11/13</div>
   <div class="log-content">
     ・修復背包物品前綴顯示。<br>
-    ・待更新<br>
+    ・裝備詞綴位置移至第二排<br>
     ・待更新<br>
   </div>
 </div>
@@ -1915,13 +1914,25 @@ function addEquip(inst){
     }catch(_){}
     return null;
   }
-  displayEquipName = function(id){
+   displayEquipName = function(id){
     let inst=getEquipInstance(id);
-    if(!inst && typeof id==="string" && id.startsWith("E#")) inst=tryRestoreEquipFromSave(id);
-    if(!inst){ try{ return __orig_displayEquipName(id); }catch(_){ return "（裝備資料遺失）"; } }
+    if(!inst && typeof id==="string" && id.startsWith("E#")) {
+      inst = tryRestoreEquipFromSave(id);
+    }
+    if(!inst){
+      try{
+        // 沒拿到實例就交回原本的版本處理（同樣不附詞條）
+        return __orig_displayEquipName(id);
+      }catch(_){
+        return "（裝備資料遺失）";
+      }
+    }
+
+    // 這裡也維持「只顯示名稱＋+N」，完全不要加詞條
     const show = inst.qual==="神器" ? `[神器☆${inst.name}]` : inst.name;
-    return `${show}${inst.plus?` +${inst.plus}`:""}${affixShort(inst)}`;
+    return `${show}${inst.plus ? ` +${inst.plus}` : ""}`;
   };
+
   displayInvName = function(k){
     // 裝備實體 E#...
     if (typeof k === "string" && k.startsWith("E#")) {
@@ -2845,6 +2856,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
