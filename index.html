@@ -497,6 +497,7 @@ dialog{
     ・修復裝備強化失敗，素質沒有回落問題。<br>
     ・修改裝備強化成功率。<br>
     ・調整裝備基礎強度，強化素質。<br>
+    ・修改強化詞條強度。<br>
   </div>
 </div>
     <!-- ⬇⬇⬇ 11/12更新如下 ⬇⬇⬇ -->
@@ -1114,13 +1115,24 @@ function qualWithStars(inst){
 }
 
   // 裝備詞條
+   // 裝備詞條
   const AFFIX_LIB=[
-    {key:"lifesteal", name:"吸血",  desc:"攻擊回復 5~10 HP", min:5, max:10},
-    {key:"poison",    name:"中毒",  desc:"每回合 2~5 DOT（三回合）", min:2, max:5},
-    {key:"crit",      name:"爆擊",  desc:"暴擊率 +5%", min:5, max:5},
-    {key:"combo",     name:"連擊",  desc:"25% 觸發追加打擊", min:25, max:25},
+    // 吸血：改成「依這次傷害的 2~4%」，不會回太多，但後期也不至於廢
+    {key:"lifesteal", name:"吸血",  desc:"回復已造成傷害的 2~4%",  min:2,  max:4},
+
+    // 中毒：改成「每回合吃玩家攻擊 10~18%」，至少 3 回合
+    {key:"poison",    name:"中毒",  desc:"每回合造成攻擊 10~18% 傷害（三回合）", min:10, max:18},
+
+    // 爆擊：維持 +5% 就好，穩定但不逆天
+    {key:"crit",      name:"爆擊",  desc:"暴擊率 +5%", min:5,  max:5},
+
+    // 連擊：觸發率從 25% 降到 15%，而且只吃大約 7 成傷害
+    {key:"combo",     name:"連擊",  desc:"15% 觸發 7 成傷害的追加打擊", min:15, max:15},
+
+    // 破甲：維持敵防 -20%，當作一個穩定輸出詞條
     {key:"shred",     name:"破甲",  desc:"計算傷害時敵防 -20%", min:20, max:20},
   ];
+
 
   function autosave(){
     try{
@@ -2344,31 +2356,61 @@ function addRandomAffixN(inst, n){
   }
   function tryCombo(p,e){
     const w = getEquippedWithAffix(p);
-    if(w?.affix?.some(a=>a.key==="combo")){
-      if(Math.random()*100<25){
-        const effDef=effectiveEnemyDef(e,p);
-        let extra=Math.max(1, rnd(p.atk-1,p.atk+2)-effDef);
-        extra=critMaybe(p,extra);
-        e.hp=clamp(e.hp-extra,0,e.maxhp);
+    if(!w) return;
+
+    // 有「連擊」詞條才觸發
+    if(w.affix?.some(a => a.key === "combo")){
+      // 觸發率從 25% 降到 15%，比較不逆天
+      if(Math.random() * 100 < 15){
+        const effDef = effectiveEnemyDef(e,p);
+        let extra = Math.max(1, rnd(p.atk-2, p.atk+2) - effDef);
+
+        // 降到約 7 成傷害，當作半顆被動技能
+        extra = Math.floor(extra * 0.5);
+        extra = critMaybe(p, extra);
+
+        e.hp = clamp(e.hp - extra, 0, e.maxhp);
         say(`🔁 連擊觸發！追加傷害 <span class="hp">-${extra}</span>。`);
       }
     }
   }
-  function affixOnHit(p,e,damage){
-     // ✅ 沒有敵人就別處理詞條
-  if(!e) return;
-    const w = getEquippedWithAffix(p); if(!w) return;
+
+   function affixOnHit(p,e,damage){
+    // ✅ 沒有敵人就別處理詞條
+    if(!e) return;
+    const w = getEquippedWithAffix(p); 
+    if(!w) return;
+
     w.affix.forEach(a=>{
-      if(a.key==="lifesteal"){
-        const heal = Math.min(a.val, damage);
-        p.hp=clamp(p.hp+heal,0,p.maxhp);
-        say(`🩸 吸血回復 <b>${heal} HP</b>。`);
+      // 吸血：依「本次傷害」的 2~4%，且加上上限，避免一刀吸太多
+      if(a.key === "lifesteal"){
+        // 舊存檔如果以前是 5~10，這裡會被夾成 2~4，避免太超過
+        const percent = Math.max(2, Math.min(a.val, 4)); // 2% ~ 4%
+        let heal = Math.floor(damage * percent / 100);
+
+        // 單次最多回 20% maxHP，順便避免一刀回滿
+        const cap  = Math.floor(p.maxhp * 0.20);
+        heal = Math.min(heal, cap, damage);
+
+        if(heal > 0){
+          p.hp = clamp(p.hp + heal, 0, p.maxhp);
+          say(`🩸 吸血回復 <b>${heal} HP</b>。`);
+        }
       }
-      if(a.key==="poison"){
-        e.dot = a.val; e.dotTurns = Math.max(3,e.dotTurns); // 至少 3 回合
+
+      // 中毒：依「玩家攻擊力」的 10~18% 當成 DOT，至少 3 回合
+      if(a.key === "poison"){
+        // 舊存檔如果之前是 2~5，這裡會被拉高到至少 8%，不會太廢
+        const percent = Math.max(8, Math.min(a.val, 18)); // 8% ~ 18%
+        const dot = Math.max(1, Math.floor(p.atk * percent / 100));
+
+        e.dot = dot;
+        e.dotTurns = Math.max(3, e.dotTurns || 0); // 至少 3 回合
+        say(`☠️ ${e.name} 中毒了，每回合將損失約 <b>${dot}</b> HP（${e.dotTurns} 回合）。`);
       }
     });
   }
+
 
   /* ========= 商店 ========= */
   const shopDlg=$("#shopDlg"), buyList=$("#shopBuyList"), sellList=$("#shopSellList");
@@ -2873,3 +2915,4 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
