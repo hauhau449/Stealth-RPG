@@ -980,10 +980,16 @@ function categoryTagForKey(k){
   }
   // 一般物品：判斷技能書，其餘當消耗品
   const n = k || "";
-  const isBook = (itemDefs?.[n]?.type === "skillbook") || n.includes("技能書");
+  const defType = itemDefs?.[n]?.type;
+  const isBook =
+    defType === "book" ||
+    defType === "skillbook" ||
+    n.includes("技能書") ||
+    n.startsWith("秘傳：");
   if(isBook) return `<span class="cat cat-book">[技能書]</span>`;
   return `<span class="cat cat-consum">[消耗品]</span>`;
 }
+
 
 // （可選）把「技能書：活力」這種名稱清成「活力」
 function cleanBookName(n){ return n.replace(/^技能書[:：]\s*/,''); }
@@ -1375,8 +1381,12 @@ function displayEquipName(id){
   const nameHtml = fmtItem(inst.name, inst.qual); // 依品質上色
   const starHtml = (inst.qual==="紫" || inst.qual==="神器") && (inst.stars>0)
     ? ` <span class="star">${inst.stars}☆</span>` : "";
-  return `${nameHtml}${inst.plus ? ` +${inst.plus}` : ""}${starHtml}`; // 不附詞條
+  const tag = categoryTagForKey(id); // 這裡會給 [武器] / [防具] / [飾品] / [坐騎]
+
+  // ➜ 變成「[武器] 木劍 +N ☆」
+  return `${tag} ${nameHtml}${inst.plus ? ` +${inst.plus}` : ""}${starHtml}`; // 不附詞條
 }
+
 
 
   function affixShort(inst){
@@ -1904,18 +1914,29 @@ function addEquip(inst){
     return `${show}${inst.plus?` +${inst.plus}`:""}${affixShort(inst)}`;
   };
   displayInvName = function(k){
-    if(typeof k==="string" && k.startsWith("E#")){
-      let inst=getEquipInstance(k);
-      if(!inst) inst=tryRestoreEquipFromSave(k);
-      if(!inst) return "（裝備資料遺失）";
-      const baseName=fmtItem(inst.name,inst.qual);
-      return `${baseName}${inst.plus?` +${inst.plus}`:""}${affixShort(inst)}`;
+    // 裝備實體 E#...
+    if (typeof k === "string" && k.startsWith("E#")) {
+      let inst = getEquipInstance(k);
+      if (!inst) inst = tryRestoreEquipFromSave(k);
+      if (!inst) return "（裝備資料遺失）";
+
+      const tag      = categoryTagForKey(k);                 // ← 這行決定 [武器]/[防具]/[飾品]
+      const baseName = fmtItem(inst.name, inst.qual);        // 依品質上色
+      const starHtml = (inst.qual === "紫" || inst.qual === "神器") && (inst.stars > 0)
+        ? ` <span class="star">${inst.stars}☆</span>` : "";
+
+      return `${tag} ${baseName}${inst.plus ? ` +${inst.plus}` : ""}${starHtml}${affixShort(inst)}`;
     }
-    if(typeof k==="string" && k.startsWith("M#")){
-      let m=getMountInstance(k);
-      if(!m) m=tryRestoreMountFromSave(k);
-      return m?m.name:"（坐騎資料遺失）";
+
+    // 坐騎實體 M#...
+    if (typeof k === "string" && k.startsWith("M#")) {
+      let m = getMountInstance(k);
+      if (!m) m = tryRestoreMountFromSave(k);
+      const tag = categoryTagForKey(k);                      // ← 這裡會變成 [坐騎]
+      return m ? `${tag} ${m.name}` : `${tag} （坐騎資料遺失）`;
     }
+
+    // 其他：交回原本版本處理（藥水、技能書等）
     return __orig_displayInvName ? __orig_displayInvName(k) : k;
   };
 
@@ -2815,6 +2836,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
