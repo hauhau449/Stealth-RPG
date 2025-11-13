@@ -486,6 +486,7 @@ dialog{
     ・背包預覽處可點擊使用。<br>
     ・地圖重新調整。<br>
     ・神器碎片待修正。<br>
+    ・技能升級，需求技能書數量及升階調整。<br>
   </div>
 </div>
      <!-- ⬇⬇⬇ 11/13更新如下 ⬇⬇⬇ -->
@@ -498,6 +499,7 @@ dialog{
     ・修改裝備強化成功率。<br>
     ・調整裝備基礎強度，強化素質。<br>
     ・修改強化詞條強度。<br>
+    ・新增初心者技能[頭槌]，修改火球、連擊、破甲強度並綁定職業。<br>
   </div>
 </div>
     <!-- ⬇⬇⬇ 11/12更新如下 ⬇⬇⬇ -->
@@ -806,29 +808,164 @@ function ensureUniqueName(name){
 
   // 技能
   const SKILL={
-    armorbreak:{ id:"armorbreak", name:"破甲斬", type:"主動", baseMp:3, desc:"降低目標防禦後造成傷害。",
-      use:(p,e,lv)=>{if (!e) return false;  // 沒敵人就直接跳出，不要繼續執行
- const mp=3; if(p.mp<mp) return say("魔力不足。"), false;
-        p.mp-=mp; const scale=1+lv*0.04; const effDef=effectiveEnemyDef(e,p); const dmg=Math.max(2, rnd(p.atk+2,p.atk+6)-Math.floor(effDef*0.6)); const out=Math.floor(critMaybe(p,dmg)*scale);
-        e.hp=clamp(e.hp-out,0,e.maxhp); affixOnHit(p,e,out); say(`你施放 <b>破甲斬</b> Lv.${lv}，造成 <span class="hp">-${out}</span>！`); return true; } },
-   
-    smash:{ id:"smash", name:"猛擊", type:"主動", baseMp:4, desc:"重擊造成高傷害。",
-      use:(p,e,lv)=>{if (!e) return false;  // 沒敵人就直接跳出，不要繼續執行
- const mp=4; if(p.mp<mp) return say("魔力不足。"), false;
-        p.mp-=mp; const scale=1+lv*0.05; const effDef=effectiveEnemyDef(e,p); const base=Math.max(3, Math.floor((rnd(p.atk+4,p.atk+9)-effDef))); const out=Math.floor(critMaybe(p,base)*scale);
-        e.hp=clamp(e.hp-out,0,e.maxhp); affixOnHit(p,e,out); tryCombo(p,e); say(`你使出 <b>猛擊</b> Lv.${lv}，<span class="hp">-${out}</span>！`); return true; } },
-    
-    fireball:{ id:"fireball", name:"火球術", type:"主動", baseMp:5, desc:"火焰無視多數防禦。",
-      use:(p,e,lv)=>{if (!e) return false;  // 沒敵人就直接跳出，不要繼續執行
- const mp=5; if(p.mp<mp) return say("魔力不足。"), false;
-        p.mp-=mp; const scale=1+lv*0.05; const ignore=Math.floor(e.def*0.7); const base=Math.max(4, Math.floor((rnd(p.atk+6,p.atk+12)-ignore))); const out=Math.floor(critMaybe(p,base)*scale);
-        e.hp=clamp(e.hp-out,0,e.maxhp); affixOnHit(p,e,out); tryCombo(p,e); say(`你施放 <b>火球術</b> Lv.${lv}！<span class="hp">-${out}</span>。`); return true; } },
-    
-    flurry:{ id:"flurry", name:"連擊", type:"主動", baseMp:4, desc:"2~3 次連段。",
-      use:(p,e,lv)=>{if (!e) return false;  // 沒敵人就直接跳出，不要繼續執行
- const mp=4; if(p.mp<mp) return say("魔力不足。"), false;
-        p.mp-=mp; let hits=rnd(2,3), tot=0, scale=1+lv*0.035; for(let i=0;i<hits;i++){ const effDef=effectiveEnemyDef(e,p); const d=Math.max(1,rnd(p.atk-1,p.atk+3)-Math.floor(effDef*0.8)); tot+=critMaybe(p,d); }
-        tot=Math.floor(tot*scale); e.hp=clamp(e.hp-tot,0,e.maxhp); affixOnHit(p,e,tot); tryCombo(p,e); say(`你施展 <b>連擊</b> Lv.${lv}，${hits} 段合計 <span class="hp">-${tot}</span>！`); return true; } },
+ // ===== 基礎技能：頭槌 =====
+  headbutt:{
+    id:"headbutt",
+    name:"頭槌",
+    type:"主動",
+    baseMp:2,
+    desc:"基礎衝撞攻擊，造成約 100% 攻擊力傷害。",
+    use(p,e,lv){
+      if(!e) return false;
+      const cost = this.baseMp;
+      if(p.mp < cost){ say("MP 不足。"); return false; }
+      p.mp -= cost;
+
+      const effDef = effectiveEnemyDef(e,p);
+      let dmg = Math.max(1, rnd(p.atk-2, p.atk+2) - effDef);
+      dmg = critMaybe(p, dmg);
+
+      e.hp = clamp(e.hp - dmg, 0, e.maxhp);
+      affixOnHit(p, e, dmg);
+      say(`🤕 你使出<b>頭槌</b>，造成 <span class="hp">-${dmg}</span>！`);
+      return true;
+    }
+  },
+
+  // ===== 戰士系：破甲斬 =====
+  armorbreak:{
+    id:"armorbreak",
+    name:"破甲斬",
+    type:"主動",
+    baseMp:4,
+    desc:"強力斬擊，造成 150% 傷害，並使敵人防禦 -80% 持續 3 回合。",
+    use(p,e,lv){
+      if(!e) return false;
+      const cost=this.baseMp + lv;        // 等級越高耗魔略升
+      if(p.mp < cost){ say("MP 不足。"); return false; }
+      p.mp -= cost;
+
+      const effDef = effectiveEnemyDef(e,p);
+      const base = Math.max(1, rnd(p.atk-1, p.atk+3) - effDef);
+      let dmg = Math.floor(base * 1.5);   // 150% 傷害
+      dmg = critMaybe(p, dmg);
+
+      e.hp = clamp(e.hp - dmg, 0, e.maxhp);
+
+      // 🔻 防禦 -80%，持續 3 回合
+      e.defDown = 0.8;
+      e.defDownTurns = 3;
+
+      affixOnHit(p, e, dmg);
+      say(`🪓 你使出<b>破甲斬</b>，造成 <span class="hp">-${dmg}</span>，並大幅削弱敵人防禦（-80%，3 回合）。`);
+      return true;
+    }
+  },
+
+  // ===== 戰士系：猛擊（如果你還要留著可以保留原本的） =====
+  smash:{
+    id:"smash",
+    name:"猛擊",
+    type:"主動",
+    baseMp:4,
+    desc:"沉重打擊，造成 120% 左右傷害。",
+    use(p,e,lv){
+      if(!e) return false;
+      const cost=this.baseMp + lv;
+      if(p.mp < cost){ say("MP 不足。"); return false; }
+      p.mp -= cost;
+
+      const effDef = effectiveEnemyDef(e,p);
+      let dmg = Math.max(1, rnd(p.atk, p.atk+4) - effDef);
+      dmg = Math.floor(dmg * 1.2);
+      dmg = critMaybe(p, dmg);
+
+      e.hp = clamp(e.hp - dmg, 0, e.maxhp);
+      affixOnHit(p, e, dmg);
+      say(`💢 你施展<b>猛擊</b>，造成 <span class="hp">-${dmg}</span>。`);
+      return true;
+    }
+  },
+
+  // ===== 法師系：火球術 =====
+  fireball:{
+    id:"fireball",
+    name:"火球術",
+    type:"主動",
+    baseMp:6,
+    desc:"投擲火球造成約 130% 傷害，並點燃敵人 3 回合，每回合造成 10~20% 額外傷害。",
+    use(p,e,lv){
+      if(!e) return false;
+      const cost = this.baseMp + lv;
+      if(p.mp < cost){ say("MP 不足。"); return false; }
+      p.mp -= cost;
+
+      const effDef = effectiveEnemyDef(e,p);
+      const base = Math.max(1, rnd(p.atk-1, p.atk+3) - effDef);
+      let main = Math.floor(base * 1.3);  // 130% 主傷害
+      main = critMaybe(p, main);
+
+      e.hp = clamp(e.hp - main, 0, e.maxhp);
+
+      // 🔥 燃燒 DOT：3 回合，每回合 main 的 10~20%
+      const dot = Math.max(1, Math.floor(main * rnd(10,20) / 100));
+      e.dot = dot;
+      e.dotTurns = 3;
+
+      affixOnHit(p, e, main);
+      say(`🔥 你施放<b>火球術</b>，造成 <span class="hp">-${main}</span>，並點燃敵人（3 回合，每回合 -${dot} HP）。`);
+      return true;
+    }
+  },
+
+  // ===== 盜賊系：連擊 =====
+  flurry:{
+    id:"flurry",
+    name:"連擊",
+    type:"主動",
+    baseMp:5,
+    desc:"三段連擊：第一段 100% 觸發，第二段 60% 觸發造成 70% 傷害，第三段 30% 觸發造成 30% 傷害。",
+    use(p,e,lv){
+      if(!e) return false;
+      const cost=this.baseMp + lv;
+      if(p.mp < cost){ say("MP 不足。"); return false; }
+      p.mp -= cost;
+
+      const effDef = effectiveEnemyDef(e,p);
+      const baseRaw = Math.max(1, rnd(p.atk-2, p.atk+2) - effDef);
+
+      let total = 0;
+      const logs = [];
+
+      // 第一段：必定觸發，100% 傷害
+      let d1 = critMaybe(p, baseRaw);
+      e.hp = clamp(e.hp - d1, 0, e.maxhp);
+      total += d1;
+      logs.push(`第一段 <span class="hp">-${d1}</span>`);
+
+      // 第二段：60% 機率，70% 傷害
+      if(Math.random() < 0.60){
+        const raw2 = Math.max(1, Math.floor(baseRaw * 0.7));
+        let d2 = critMaybe(p, raw2);
+        e.hp = clamp(e.hp - d2, 0, e.maxhp);
+        total += d2;
+        logs.push(`第二段 <span class="hp">-${d2}</span>`);
+      }
+
+      // 第三段：30% 機率，30% 傷害
+      if(Math.random() < 0.30){
+        const raw3 = Math.max(1, Math.floor(baseRaw * 0.3));
+        let d3 = critMaybe(p, raw3);
+        e.hp = clamp(e.hp - d3, 0, e.maxhp);
+        total += d3;
+        logs.push(`第三段 <span class="hp">-${d3}</span>`);
+      }
+
+      affixOnHit(p, e, total);
+      say(`🔺 你施展<b>連擊</b>！${logs.join("，")}（合計 <span class="hp">-${total}</span>）。`);
+      return true;
+    }
+  },
     
     smite:{ id:"smite", name:"聖光制裁", type:"主動", baseMp:6, desc:"聖光重擊，對黑暗系額外傷害。",
       use:(p,e,lv)=>{if (!e) return false;  // 沒敵人就直接跳出，不要繼續執行
@@ -954,10 +1091,12 @@ const MOUNTS={
   name:"你", job:"Novice", tier:0, lvl:1, exp:0,
   hp:32, mp:12, atk:6, def:5, maxhp:32, maxmp:12,
   gold:200, afk:false, lastTick:0,
-  equip:{weapon:null,armor:null,acc:null,mount:null},
-  learned:{"armorbreak":1}, activeSkill:"armorbreak",
-  skillQual:{},
-  passiveKills:{},
+    equip:{weapon:null,armor:null,acc:null,mount:null},
+    learned:{"headbutt":1},   // 初始只會頭槌
+    activeSkill:"headbutt",
+    skillQual:{},
+    passiveKills:{}
+,
   rebirths: 0   // ← 新增：已轉生次數
 },
 
@@ -1473,10 +1612,12 @@ function displayEquipName(id){
     gold: Math.round(rnd(...base.gold)),
     exp:  Math.round(rnd(...base.exp)),
     drops: base.drops,            // ⬅️ 這一行是關鍵：把掉落表帶進敵人物件
-    isBoss: !!basePick.isBoss,
+      isBoss: !!basePick.isBoss,
     tag: base.tag || "",
-    dot: 0, dotTurns: 0
+    dot: 0, dotTurns: 0,
+    defDown: 0, defDownTurns: 0   // 防禦 Debuff 用
   };
+
   return e;
 }
 
@@ -1518,11 +1659,24 @@ function displayEquipName(id){
     return;
   }
 
-    // 毒傷（在敵方回合前結算）
-    if(e.dot && e.dotTurns>0){
-      const d=e.dot; e.hp=clamp(e.hp-d,0,e.maxhp); e.dotTurns--; say(`☠️ <b>${e.name}</b> 受到中毒 <span class="bad">-${d}</span>。`);
-      if(e.hp<=0){ return endBattle(true); }
+    // 持續傷害（毒 / 燃燒等，在敵方回合前結算）
+  if(e.dot && e.dotTurns > 0){
+    const d = e.dot;
+    e.hp = clamp(e.hp - d, 0, e.maxhp);
+    e.dotTurns--;
+    say(`☠️ <b>${e.name}</b> 受到持續傷害 <span class="bad">-${d}</span>。`);
+    if(e.hp <= 0){ return endBattle(true); }
+  }
+
+  // 防禦 Debuff 回合數遞減
+  if(e.defDown && e.defDownTurns > 0){
+    e.defDownTurns--;
+    if(e.defDownTurns <= 0){
+      e.defDown = 0;
+      say(`🛡️ <b>${e.name}</b> 的防禦恢復了。`);
     }
+  }
+
     const dmg=Math.max(1, rnd(e.atk-1,e.atk+3)-p.def);
     p.hp=clamp(p.hp-dmg,0,p.maxhp);
     say(`<b>${e.name}</b> 攻擊了你，<span class="bad">-${dmg}</span>。`);
@@ -1802,10 +1956,34 @@ function calcSkillBooksNeeded(curLv){
   }
 }
 
-  function learnOrUpgradeSkill(id, bookName){
+function learnOrUpgradeSkill(id, bookName){
   const p = game.player;
   const maxLv = SKILL_MAX_LV;
   const cur = p.learned[id] || 0;
+
+  // 🔒 進階技能職業限制（依你前面設定）
+  // headbutt：頭槌（基礎技，不鎖）
+  // flurry：連擊 → 盜賊系
+  // fireball：火球術 → 法師系
+  // armorbreak：破甲斬 → 戰士系
+  const jobLock = {
+    flurry:     ["Rogue"],   // 連擊
+    fireball:   ["Mage"],    // 火球術
+    armorbreak: ["Warrior"]  // 破甲斬
+  };
+
+  // 若這個技能有職業限制，就檢查「是否有轉職」＋「職業是否正確」
+  if (jobLock[id]) {
+    const t = p.tier || 0;
+    if (t <= 0) {
+      say("❌ 尚未轉職，無法學習這個技能。");
+      return;
+    }
+    if (!jobLock[id].includes(p.job)) {
+      say("❌ 這本技能書只能由對應職業習得。");
+      return;
+    }
+  }
 
   // 需要的書本數（由設定決定）
   const need = calcSkillBooksNeeded(cur);
@@ -1815,6 +1993,7 @@ function calcSkillBooksNeeded(curLv){
     say(`📘 升級需要 <b>${need}</b> 本 <b>${bookName}</b>（目前 ${game.inv[bookName]||0}）`);
     return;
   }
+
   // 檢查金幣是否足夠（若有設定）
   if(SKILL_UP_GOLD_COST > 0 && p.gold < SKILL_UP_GOLD_COST){
     say(`💰 升級需要 <b>${SKILL_UP_GOLD_COST}</b> 金幣（目前 ${p.gold}）`);
@@ -1851,6 +2030,7 @@ function calcSkillBooksNeeded(curLv){
   if(SKILL[id].type!=="被動"){ p.activeSkill = id; }
   render(); autosave();
 }
+
 
   function addInv(name,c=1){ game.inv[name]=(game.inv[name]||0)+c; autosave(); }
   function decInv(name,c=1){ if(!game.inv[name]) return; game.inv[name]-=c; if(game.inv[name]<=0) delete game.inv[name]; autosave(); }
@@ -2338,10 +2518,23 @@ function addRandomAffixN(inst, n){
   
   // 傷害修飾
   function effectiveEnemyDef(e,p){
-    const w = getEquippedWithAffix(p);
-    if(w?.affix?.some(a=>a.key==="shred")) return Math.floor(e.def*0.8);
-    return e.def;
+  if(!e) return 0;
+  let def = e.def;
+
+  // 技能造成的防禦下降（例如破甲斬 -80%）
+  if(e.defDown && e.defDown > 0){
+    def = Math.floor(def * (1 - e.defDown));
   }
+
+  // 詞條「破甲」再額外 -20%
+  const w = getEquippedWithAffix(p);
+  if(w?.affix?.some(a=>a.key==="shred")){
+    def = Math.floor(def * 0.8);
+  }
+
+  return Math.max(0, def);
+}
+
   function getEquippedWithAffix(p){
     const ids=[p.equip.weapon,p.equip.armor,p.equip.acc].filter(Boolean);
     for(const id of ids){ const inst=getEquipInstance(id); if(inst && inst.affix && inst.affix.length) return inst; }
@@ -2915,4 +3108,5 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
