@@ -493,8 +493,10 @@ dialog{
   <div class="log-date">2025/11/13</div>
   <div class="log-content">
     ・修復背包物品前綴顯示。<br>
-    ・裝備詞綴位置移至第二排<br>
-    ・待更新<br>
+    ・裝備詞綴位置移至第二排。<br>
+    ・修復裝備強化失敗，素質沒有回落問題。<br>
+    ・修改裝備強化成功率。<br>
+    ・調整裝備基礎強度，強化素質。<br>
   </div>
 </div>
     <!-- ⬇⬇⬇ 11/12更新如下 ⬇⬇⬇ -->
@@ -646,52 +648,52 @@ const QUALITY_ORDER={白:0,綠:1,藍:2,黃:3,橘:4,紫:5};
 // === 低階固定素質（依「部位」分別定義，可自行調整） ===
 const FIXED_LOW_TIER = {
   weapon: { // 白/綠/藍固定值
-    白:{atk:10, def:0,  hp:0,  mp:0},
-    綠:{atk:16, def:1,  hp:0,  mp:2},
-    藍:{atk:22, def:2,  hp:5,  mp:4}
+    白:{atk:2, def:0,  hp:0,  mp:0},
+    綠:{atk:6, def:1,  hp:2,  mp:2},
+    藍:{atk:18, def:2,  hp:4,  mp:4}
   },
   armor: {
-    白:{atk:0,  def:6,  hp:30, mp:0},
-    綠:{atk:0,  def:9,  hp:45, mp:2},
-    藍:{atk:0,  def:12, hp:60, mp:4}
+    白:{atk:0,  def:2,  hp:5, mp:0},
+    綠:{atk:0,  def:6,  hp:15, mp:2},
+    藍:{atk:0,  def:18, hp:45, mp:6}
   },
   acc:{
-    白:{atk:2,  def:2,  hp:10, mp:6},
-    綠:{atk:3,  def:3,  hp:15, mp:8},
-    藍:{atk:4,  def:4,  hp:20, mp:10}
+    白:{atk:1,  def:1,  hp:3, mp:2},
+    綠:{atk:3,  def:3,  hp:9, mp:6},
+    藍:{atk:9,  def:9,  hp:27, mp:18}
   }
 };
 // === 強化規則定義 ===
 // 每 +1 的素質增量
 const PLUS_DELTA = {
-  藍:{atk:2,  def:1,  hp:5,  mp:3},
-  黃:{atk:4,  def:2,  hp:10, mp:6},
-  橘:{atk:8,  def:4,  hp:20, mp:12},
-  紫:{atk:10, def:6,  hp:30, mp:20},
+  藍:{atk:1,  def:1,  hp:5,  mp:3},
+  黃:{atk:1,  def:1,  hp:5, mp:3},
+  橘:{atk:1,  def:1,  hp:5, mp:3},
+  紫:{atk:1, def:1,  hp:5, mp:3},
   神器:{atk:25, def:15, hp:80, mp:50} // 神器獨立用
 };
 
 // 強化成功率（依品階、星數段）
 const ENH_RATE = {
-  藍:   p => (p<=5?0.95 : 0.90),
-  黃:   p => (p<=5?0.85 : 0.80),
-  橘:   p => (p<=5?0.75 : 0.70),
+  藍:   p => (p<=5?0.70 : 0.65),
+  黃:   p => (p<=5?0.60 : 0.55),
+  橘:   p => (p<=5?0.50 : 0.45),
   紫:   (p,stars)=> {
-    if(stars===0) return (p<=5?0.70:0.65);
-    if(stars===1) return 0.65;
-    if(stars===2) return 0.60;
-    if(stars===3) return 0.55;
-    if(stars===4) return 0.50;
-    if(stars>=5)  return 0.45;
+    if(stars===0) return (p<=5?0.45:0.40);
+    if(stars===1) return 0.40;
+    if(stars===2) return 0.35;
+    if(stars===3) return 0.30;
+    if(stars===4) return 0.25;
+    if(stars>=5)  return 0.20;
   },
   神器:(p,stars)=>{
     let base;
-    if(stars===0) base = 0.60;
-    if(stars===1) base = 0.55;
-    if(stars===2) base = 0.50;
-    if(stars===3) base = 0.45;
-    if(stars===4) base = 0.40;
-    if(stars>=5)  base = 0.30;
+    if(stars===0) base = 0.35;
+    if(stars===1) base = 0.30;
+    if(stars===2) base = 0.25;
+    if(stars===3) base = 0.20;
+    if(stars===4) base = 0.15;
+    if(stars>=5)  base = 0.10;
     // ㄅㄅㄐ之錘每顆 +1%
     return Math.min(0.99, base + 0.01*(game.buffs?.artiHammer||0));
   }
@@ -699,11 +701,11 @@ const ENH_RATE = {
 
 // 失敗是否掉階（以及機率）
 const FAIL_BEHAVIOR = {
-  藍:   ()=>({ drop:false, rate:0 }),                          // 不掉
-  黃:   ()=>({ drop:true,  rate:0.20 }),
-  橘:   ()=>({ drop:true,  rate:0.30 }),
-  紫:   (stars)=>({ drop:true, rate: stars===0?0.40 : [0.45,0.50,0.55,0.60,0.65][Math.min(stars,5)-1] }),
-  神器:(stars)=>({ drop:true, rate: stars===0?0.40 : [0.30,0.35,0.40,0.50,0.65][Math.min(stars,5)-1] })
+  藍:   ()=>({ drop:true, rate:0.20 }),                          
+  黃:   ()=>({ drop:true,  rate:0.50 }),
+  橘:   ()=>({ drop:true,  rate:0.70 }),
+  紫:   (stars)=>({ drop:true, rate: stars===0?0.70 : [0.70,0.70,0.75,0.75,0.80][Math.min(stars,5)-1] }),
+  神器:(stars)=>({ drop:true, rate: stars===0?0.80 : [0.80,0.80,0.85,0.85,0.90][Math.min(stars,5)-1] })
 };
 
 // 升級邏輯：藍/黃/橘 +10 升下一階（弱化詞條*1）；紫 +10 → 星數+1、plus歸0（最多5星）
@@ -2174,14 +2176,14 @@ function failDropChance(inst){
   return 0;
 }
 
-  // 失敗降階機率
+  /* 失敗降階機率
   function failDropChance(qual){
     if(qual==="藍") return 0.50;
     if(qual==="黃") return 0.65;
     if(qual==="橘") return 0.75;
     if(qual === "神器") return 0.85;   // ★ 新增：神器失敗多半會掉階
     return 1.0;
-  }
+  }*/
   //強化費用
  function enhCost(inst){
   const q=inst.qual, p=inst.plus||0, s=inst.stars||0;
@@ -2248,13 +2250,28 @@ enhBtnDo.onclick=()=>{
     recomputeStats(false);
   }else{
     // 失敗：依規則是否掉階
+    const beforePlus = inst.plus || 0;
     const dropP = failDropChance(inst);
-    if(Math.random()<dropP){
-      inst.plus=Math.max(0,(inst.plus||0)-1);
+    if (beforePlus > 0 && Math.random() < dropP) {
+      // 等級下降 1
+      inst.plus = beforePlus - 1;
+
+      // 🔻 把對應品階的強化加成扣回去
+      const d = PLUS_DELTA[inst.qual];
+      if (d) {
+        inst.atk -= d.atk;
+        inst.def -= d.def;
+        inst.hp  -= d.hp;
+        inst.mp  -= d.mp;
+      }
+
       say(`❌ 強化失敗，降為 +${inst.plus}。`);
-    }else{
+    } else {
       say(`❌ 強化失敗，但等級不變（保底）。`);
     }
+
+    // 更新玩家總素質
+    recomputeStats(false);
   }
   renderEnhancePanel(); render(); autosave();
 };
@@ -2643,12 +2660,12 @@ function doRebirth(){
     box.innerHTML=`
       <b>功能總覽</b><br>
       • 網頁偽裝：按 Esc 先關對話框，再切換儀表板/報表模式。<br>
-      • 掛機：按「🤖 掛機」開關；每 5 秒自動探索/戰鬥，血/魔自動用藥。<br>
+      • 掛機：按「🤖 掛機」開關；每 1 秒自動探索/戰鬥，血/魔自動用藥。<br>
       • 地圖：每 10 等一張，直至 200；另有各轉隱藏地圖 & Boss 獨立地圖。<br>
       • 轉職：Lv10/30/70/120 四段；轉職發放專屬技能；職武限制生效。<br>
       • 商店：只賣白品裝備、消耗品與戰馬（10,000G）。新增<b>經驗加倍捲</b>（100G，5 日，可疊加）。<br>
       • 藥水：治療與魔力藥水皆可 2 合 1（小→中→大→特級）。特級：治療回 50% HP、魔力回 50% MP。<br>
-      • 裝備品質：白/綠/藍/黃/橘/神器（紫）；白→綠→藍可用合成（同名 3 件）。<br>
+      • 裝備品質：白/綠/藍/黃/橘/紫/神器（紅）；白→綠→藍可用合成（同名 3 件）。<br>
       • 強化：藍品以上可強化；成功率依品質與等級表；失敗時有機率 -1。+10升下一品質。<br>
       • 詞條：藍→黃、黃→橘時各追加 1 條詞條（吸血/中毒/爆擊/連擊/破甲）。<br>
       • 技能：基礎技能書怪物可掉；技能最高 25，滿級可升品質並重置。<br>
@@ -2856,27 +2873,3 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
