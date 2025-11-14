@@ -486,7 +486,19 @@ dialog{
     ・背包預覽處可點擊使用。<br>
     ・地圖重新調整。<br>
     ・神器碎片待修正。<br>
+  </div>
+</div>
+  <!-- ⬇⬇⬇ 11/14更新如下 ⬇⬇⬇ -->
+    <div class="log-entry">
+  <div class="log-date">2025/11/14</div>
+  <div class="log-content">
     ・技能升級，需求技能書數量及升階調整。<br>
+    ・修復技能升級傷害未提升。<br>
+    ・移除戰士技能[痛擊]。<br>
+    ・修復隱藏道具掉落[xxx之槌]。<br>
+    ・四轉[聖光裁決]可學習全職業技能。<br>
+    ・微調轉職後素質加成。<br>
+    ・調整坐騎、萬斬掉落率。<br>
   </div>
 </div>
      <!-- ⬇⬇⬇ 11/13更新如下 ⬇⬇⬇ -->
@@ -792,7 +804,7 @@ function ensureUniqueName(name){
   
   const JOB_TREE=[
     {tier:0,key:"Novice", name:"初心者"},
-    {tier:1,key:"Warrior", name:"狂刃戰將", weapon:"blade", passive:"武勇", start:["smash"]},
+    {tier:1,key:"Warrior", name:"狂刃戰將", weapon:"blade", passive:"武勇", start:["armorbreak"]},
     {tier:2,key:"Mage",    name:"星紋術士", weapon:"staff", passive:"星識", start:["fireball"]},
     {tier:3,key:"Rogue",   name:"影襲行者", weapon:"dagger", passive:"潛匿", start:["flurry"]},
     {tier:4,key:"Paladin", name:"聖光裁決", weapon:"blade", passive:"祈護", start:["smite"]},
@@ -809,12 +821,12 @@ function ensureUniqueName(name){
   // 技能
   const SKILL={
  // ===== 基礎技能：頭槌 =====
-  headbutt:{
+headbutt:{
     id:"headbutt",
     name:"頭槌",
     type:"主動",
     baseMp:2,
-    desc:"基礎衝撞攻擊，造成約 100% 攻擊力傷害。",
+    desc:"基礎衝撞攻擊，造成略高於普通攻擊的傷害（每級提升約 4%）。",
     use(p,e,lv){
       if(!e) return false;
       const cost = this.baseMp;
@@ -823,22 +835,28 @@ function ensureUniqueName(name){
 
       const effDef = effectiveEnemyDef(e,p);
       let dmg = Math.max(1, rnd(p.atk-2, p.atk+2) - effDef);
-      dmg = critMaybe(p, dmg);
 
+      // 等級倍率：Lv1 稍微比普攻強，之後每級再多一點
+      const scale = 1.10 + 0.04 * (lv-1);   // Lv1=1.10, Lv25≈2.06
+      dmg = Math.floor(dmg * scale);
+
+      dmg = critMaybe(p, dmg);
       e.hp = clamp(e.hp - dmg, 0, e.maxhp);
       affixOnHit(p, e, dmg);
-      say(`🤕 你使出<b>頭槌</b>，造成 <span class="hp">-${dmg}</span>！`);
+      say(`🤕 你使出<b>頭槌</b>（Lv.${lv}），造成 <span class="hp">-${dmg}</span>！`);
       return true;
     }
   },
 
+
+
   // ===== 戰士系：破甲斬 =====
-  armorbreak:{
+ armorbreak:{
     id:"armorbreak",
     name:"破甲斬",
     type:"主動",
     baseMp:4,
-    desc:"強力斬擊，造成 150% 傷害，並使敵人防禦 -80% 持續 3 回合。",
+    desc:"強力斬擊，造成約 140% 傷害，並使敵人防禦 -50% 持續 2 回合（傷害隨等級上升）。",
     use(p,e,lv){
       if(!e) return false;
       const cost=this.baseMp + lv;        // 等級越高耗魔略升
@@ -847,20 +865,25 @@ function ensureUniqueName(name){
 
       const effDef = effectiveEnemyDef(e,p);
       const base = Math.max(1, rnd(p.atk-1, p.atk+3) - effDef);
-      let dmg = Math.floor(base * 1.5);   // 150% 傷害
-      dmg = critMaybe(p, dmg);
+      let dmg = Math.floor(base * 1.4);   // 基礎 140% 傷害
 
+      // 等級倍率：每級額外 +2% 傷害
+      const scale = 1 + 0.02 * (lv-1);
+      dmg = Math.floor(dmg * scale);
+
+      dmg = critMaybe(p, dmg);
       e.hp = clamp(e.hp - dmg, 0, e.maxhp);
 
-      // 🔻 防禦 -80%，持續 3 回合
-      e.defDown = 0.8;
-      e.defDownTurns = 3;
+      // 🔻 防禦 -50%，持續 2 回合（比原本溫和一點）
+      e.defDown = 0.5;
+      e.defDownTurns = 2;
 
       affixOnHit(p, e, dmg);
-      say(`🪓 你使出<b>破甲斬</b>，造成 <span class="hp">-${dmg}</span>，並大幅削弱敵人防禦（-80%，3 回合）。`);
+      say(`🪓 你使出<b>破甲斬</b>（Lv.${lv}），造成 <span class="hp">-${dmg}</span>，並大幅削弱敵人防禦（-50%，2 回合）。`);
       return true;
     }
   },
+
 
   // ===== 戰士系：猛擊（如果你還要留著可以保留原本的） =====
   smash:{
@@ -893,7 +916,7 @@ function ensureUniqueName(name){
     name:"火球術",
     type:"主動",
     baseMp:6,
-    desc:"投擲火球造成約 130% 傷害，並點燃敵人 3 回合，每回合造成 10~20% 額外傷害。",
+    desc:"投擲火球造成約 130% 傷害，並點燃敵人 3 回合（等級越高主傷與燃燒都會變強）。",
     use(p,e,lv){
       if(!e) return false;
       const cost = this.baseMp + lv;
@@ -903,8 +926,12 @@ function ensureUniqueName(name){
       const effDef = effectiveEnemyDef(e,p);
       const base = Math.max(1, rnd(p.atk-1, p.atk+3) - effDef);
       let main = Math.floor(base * 1.3);  // 130% 主傷害
-      main = critMaybe(p, main);
 
+      // 等級倍率：每級 +2% 主傷與 DOT
+      const scale = 1 + 0.02 * (lv-1);
+      main = Math.floor(main * scale);
+
+      main = critMaybe(p, main);
       e.hp = clamp(e.hp - main, 0, e.maxhp);
 
       // 🔥 燃燒 DOT：3 回合，每回合 main 的 10~20%
@@ -913,7 +940,7 @@ function ensureUniqueName(name){
       e.dotTurns = 3;
 
       affixOnHit(p, e, main);
-      say(`🔥 你施放<b>火球術</b>，造成 <span class="hp">-${main}</span>，並點燃敵人（3 回合，每回合 -${dot} HP）。`);
+      say(`🔥 你施放<b>火球術</b>（Lv.${lv}），造成 <span class="hp">-${main}</span>，並點燃敵人（3 回合，每回合 -${dot} HP）。`);
       return true;
     }
   },
@@ -924,7 +951,7 @@ function ensureUniqueName(name){
     name:"連擊",
     type:"主動",
     baseMp:5,
-    desc:"三段連擊：第一段 100% 觸發，第二段 60% 觸發造成 70% 傷害，第三段 30% 觸發造成 30% 傷害。",
+    desc:"三段連擊：第一段必定命中，後兩段有機率追加（每級提升總傷害約 3%）。",
     use(p,e,lv){
       if(!e) return false;
       const cost=this.baseMp + lv;
@@ -934,21 +961,22 @@ function ensureUniqueName(name){
       const effDef = effectiveEnemyDef(e,p);
       const baseRaw = Math.max(1, rnd(p.atk-2, p.atk+2) - effDef);
 
-      let total = 0;
+      let baseTotal = 0;
       const logs = [];
 
-      // 第一段：必定觸發，100% 傷害
-      let d1 = critMaybe(p, baseRaw);
-      e.hp = clamp(e.hp - d1, 0, e.maxhp);
-      total += d1;
-      logs.push(`第一段 <span class="hp">-${d1}</span>`);
+      // 第一段：100% 觸發，100% 傷害
+      {
+        const raw1 = Math.max(1, baseRaw);
+        let d1 = critMaybe(p, raw1);
+        baseTotal += d1;
+        logs.push(`第一段 <span class="hp">-${d1}</span>`);
+      }
 
       // 第二段：60% 機率，70% 傷害
       if(Math.random() < 0.60){
         const raw2 = Math.max(1, Math.floor(baseRaw * 0.7));
         let d2 = critMaybe(p, raw2);
-        e.hp = clamp(e.hp - d2, 0, e.maxhp);
-        total += d2;
+        baseTotal += d2;
         logs.push(`第二段 <span class="hp">-${d2}</span>`);
       }
 
@@ -956,16 +984,26 @@ function ensureUniqueName(name){
       if(Math.random() < 0.30){
         const raw3 = Math.max(1, Math.floor(baseRaw * 0.3));
         let d3 = critMaybe(p, raw3);
-        e.hp = clamp(e.hp - d3, 0, e.maxhp);
-        total += d3;
+        baseTotal += d3;
         logs.push(`第三段 <span class="hp">-${d3}</span>`);
       }
 
-      affixOnHit(p, e, total);
-      say(`🔺 你施展<b>連擊</b>！${logs.join("，")}（合計 <span class="hp">-${total}</span>）。`);
+      if(baseTotal <= 0){
+        say("你的連擊沒有造成傷害。");
+        return true;
+      }
+
+      // 等級倍率：總傷害再乘上一層
+      const scale = 1 + 0.02 * (lv-1);
+      const finalTotal = Math.max(1, Math.floor(baseTotal * scale));
+
+      e.hp = clamp(e.hp - finalTotal, 0, e.maxhp);
+      affixOnHit(p, e, finalTotal);
+      say(`🔺 你施展<b>連擊</b>（Lv.${lv}）！${logs.join("，")}（合計 <span class="hp">-${finalTotal}</span>）。`);
       return true;
     }
   },
+
     
     smite:{ id:"smite", name:"聖光制裁", type:"主動", baseMp:6, desc:"聖光重擊，對黑暗系額外傷害。",
       use:(p,e,lv)=>{if (!e) return false;  // 沒敵人就直接跳出，不要繼續執行
@@ -1007,7 +1045,8 @@ const XP_SCROLL_RATE = 2.0;
     "技能書：專注":{type:"book", skill:"focus"},
     "技能書：火球術":{type:"book", skill:"fireball"},
     "技能書：連擊":{type:"book", skill:"flurry"},
-    "技能書：猛擊":{type:"book", skill:"smash"},
+    "技能書：破甲斬":{type:"book", skill:"armorbreak"},
+    "技能書：猛擊":{type:"book", skill:"armorbreak"},
     "秘傳：萬斬":{type:"book", skill:"omnislash"},
     "ㄅㄅㄐ之錘":{type:"consum",desc:"神器強化成功率永久+1%（可疊加）。",use:(p)=>{if(!game.buffs) game.buffs={xpLayers:[],artiHammer:0};game.buffs.artiHammer = (game.buffs.artiHammer||0) + 1;
     decInv("ㄅㄅㄐ之錘",1);
@@ -1339,7 +1378,7 @@ function qualWithStars(inst){
     const names=["幽魂","秘紋寶箱怪","遺跡守衛"];
     return names.map(n=>({ name:n, base:monsterTemplate(baseLvl+5, n==="幽魂"?"dark":""), isBoss:false }));
   }
-  function bossPoolForTier(t,isFinal=false){
+function bossPoolForTier(t,isFinal=false){
     const tbl=[["火龍"],["暴雪巨靈"],["深淵之眼"],["星墜魔像"],["終末領主"]];
     const name = isFinal? "終末領主" : tbl[t-1][0];
     const baseLvl= t===1?12 : t===2?35 : t===3?72 : t===4?125 : 190;
@@ -1347,11 +1386,13 @@ function qualWithStars(inst){
     base.hp = Math.round(base.hp*3.5);
     base.atk = Math.round(base.atk*1.6);
     base.def = Math.round(base.def*1.4);
-    base.drops.push({mount: bossMountName(name), rate:0.05}); //坐騎掉落率
-    base.drops.push({artifact: true, rate:0.005, baseName: bossArtifactName(name)}); //神器掉落率
-    base.drops.push({item:"秘傳：萬斬",rate:0.10});
+    base.drops.push({mount: bossMountName(name), rate:0.01}); // 坐騎掉落率
+    base.drops.push({artifact: true, rate:0.005, baseName: bossArtifactName(name)}); // 神器掉落率
+    base.drops.push({item:"ㄅㄅㄐ之錘", rate:0.05}); // ㄅㄅㄐ之錘 10% 掉落
+    base.drops.push({item:"秘傳：萬斬",rate:0.05});
     return [{ name, base, isBoss:true }];
   }
+
   function bossMountName(name){ return `${name}坐騎`; }
   function bossArtifactName(name){ return `${name}之核`; }
 
@@ -1378,8 +1419,8 @@ function levelGrowth(lvl){
 }
 
 // 3) 轉職/轉生倍率：只吃白板（不要乘到裝備）
-function tierMultiplier(tier){ return 1 + 0.02 * (tier||0); }   // 每轉 +2%
-function rebirthMultiplier(r){ return 1 + 0.10 * (r||0); }       // 每轉生 +10%
+function tierMultiplier(tier){ return 1 + 0.005 * (tier||0); }   // 每轉 +2%
+function rebirthMultiplier(r){ return 1 + 0.05 * (r||0); }       // 每轉生 +10%
 
 // 4) 被動（白板層）——如需更強可在此讀 p.learned 決定加法/乘法
 function passiveFromSkills(p){
@@ -1442,10 +1483,17 @@ function recomputeStats(applyPassives=false){
   const hpRate = Math.max(0, Math.min(1, (p.hp||prevMaxHp) / prevMaxHp ));
   const mpRate = Math.max(0, Math.min(1, (p.mp||prevMaxMp) / prevMaxMp ));
 
-  p.maxhp = Math.max(1, core.hp + addHp);
+   p.maxhp = Math.max(1, core.hp + addHp);
   p.maxmp = Math.max(0, core.mp + addMp);
   p.atk   = Math.max(0, core.atk + addAtk);
   p.def   = Math.max(0, core.def + addDef);
+
+  // 數值上限：避免攻擊、防禦、HP/MP 膨脹到失控
+  const CAP_ATK = 50000, CAP_DEF = 50000, CAP_HP = 80000, CAP_MP = 50000;
+  p.atk   = Math.min(p.atk,   CAP_ATK);
+  p.def   = Math.min(p.def,   CAP_DEF);
+  p.maxhp = Math.min(p.maxhp, CAP_HP);
+  p.maxmp = Math.min(p.maxmp, CAP_MP);
 
   p.hp = clamp(Math.floor(p.maxhp * hpRate), 1, p.maxhp);
   p.mp = clamp(Math.floor(p.maxmp * mpRate), 0, p.maxmp);
@@ -1453,6 +1501,7 @@ function recomputeStats(applyPassives=false){
   // （F）如需把坐騎移速記到玩家上（未來可用）
   p.spdFromMount = 0; // 先不計算移速（你的移速邏輯可之後接）
 }
+
 
 
   function expNeedForLevel(lvl){
@@ -1740,6 +1789,11 @@ say(`🎉 升級到 <b>Lv.${p.lvl}</b>！HP ${dhp>=0?"+":""}${dhp}, MP ${dmp>=0?
   }
 
   function handleDrops(e){
+   // 🌟 全地圖稀有掉落：ㄅㄅㄐ之錘（1% 機率，每次戰鬥結算判定一次）
+  if(Math.random() < 0.01){
+    addInv("ㄅㄅㄐ之錘",1);
+    say(`🌟 你獲得了稀有道具：<b>ㄅㄅㄐ之錘</b>！`);
+  }
     (e.drops||[]).forEach(d=>{
       if(d.item && Math.random()<d.rate){ addInv(d.item,1); say(`📖 掉落：<b>${d.item}</b>！`); }
       if(d.equip && Math.random()<d.rate){ addEquipToInv(d.equip,"白"); }
@@ -1944,17 +1998,18 @@ const SKILL_UP_GOLD_COST = 0;      // 升級額外需要的金幣（0=不需要�
 const SKILL_BOOK_MODE = "custom";
 
 /** 算升級需要幾本技能書（依當前等級 curLv） */
-function calcSkillBooksNeeded(curLv){
+function calcSkillBooksNeeded(totalLv){
   switch(SKILL_BOOK_MODE){
-    case "pow2":   return Math.pow(2, Math.max(0, curLv));          // 原版
-    case "linear": return 1;                                         // 每級 1 本
-    case "arith":  return Math.max(1, curLv);                        // 1,2,3,4…
+    case "pow2":   return Math.pow(2, Math.max(0, totalLv));          // 原版
+    case "linear": return 1;                                          // 每級 1 本
+    case "arith":  return Math.max(1, totalLv);                       // 1,2,3,4…
     case "custom":
-      // ⬇️ 你想要自己的曲線，就改這裡（例如每級 2 本 + 每 2 級多 1 本）
-      return 2 + Math.floor(curLv/2);
+      // 依「總等級」（含品質）緩慢成長：起始 1 本，每 5 級多 1 本
+      return 1 + Math.floor(Math.max(0, totalLv) / 5);
     default:       return 1;
   }
 }
+
 
 function learnOrUpgradeSkill(id, bookName){
   const p = game.player;
@@ -1986,8 +2041,10 @@ const jobLock = {
     }
   }
 
-  // 需要的書本數（由設定決定）
-  const need = calcSkillBooksNeeded(cur);
+   // 需要的書本數（由設定決定）
+  const qual = (p.skillQual && p.skillQual[id]) || 0;  // 技能目前品質階級
+  const totalLv = cur + qual * maxLv;                  // 總等級 = 當前等級 + 品質階 * 上限
+  const need = calcSkillBooksNeeded(totalLv);
 
   // 檢查書本是否足夠
   if( (game.inv[bookName]||0) < need ){
@@ -3109,6 +3166,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
