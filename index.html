@@ -1966,11 +1966,12 @@ function learnOrUpgradeSkill(id, bookName){
   // flurry：連擊 → 盜賊系
   // fireball：火球術 → 法師系
   // armorbreak：破甲斬 → 戰士系
-  const jobLock = {
-    flurry:     ["Rogue"],   // 連擊
-    fireball:   ["Mage"],    // 火球術
-    armorbreak: ["Warrior"]  // 破甲斬
-  };
+const jobLock = {
+  flurry:     ["Rogue","Paladin"],
+  fireball:   ["Mage","Paladin"],
+  armorbreak: ["Warrior","Paladin"]
+};
+
 
   // 若這個技能有職業限制，就檢查「是否有轉職」＋「職業是否正確」
   if (jobLock[id]) {
@@ -3108,5 +3109,6 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
