@@ -2220,60 +2220,111 @@ function rollArtifactStatsForSlot() {
       invFilters.appendChild(b);
     });
   }
-  function renderInventoryList(){
-    invList.innerHTML='';
-    const entries=Object.entries(game.inv);
-    if(entries.length===0){ invList.innerHTML=`<div class="row"><span class="muted">（空）</span></div>`; return; }
-    entries.forEach(([name,count])=>{
+    function renderInventoryList(){
+    invList.innerHTML = '';
+
+    const entries = Object.entries(game.inv);
+    if(entries.length === 0){
+      invList.innerHTML = `<div class="row"><span class="muted">（空）</span></div>`;
+      return;
+    }
+
+    // 先把道具轉成含 meta 的陣列
+    let arr = entries.map(([name, count])=>{
       const meta = invMeta(name);
-      if(invFilter!=="all" && meta.type!==invFilter) return;
-      const row=document.createElement("div"); row.className="row";
-      const right=document.createElement("div"); right.className="right";
+      return { name, count, meta };
+    });
+
+    // 依目前的分類過濾（全部 / 裝備 / 消耗品 / 技能書 / 坐騎 / 其他）
+    if(invFilter !== "all"){
+      arr = arr.filter(e => e.meta.type === invFilter);
+    }
+
+    if(arr.length === 0){
+      invList.innerHTML = `<div class="row"><span class="muted">（此分類目前沒有道具）</span></div>`;
+      return;
+    }
+
+    // 類型排序優先順序：裝備→坐騎→消耗品→技能書→其他
+    const typeOrder = { equip:0, mount:1, consum:2, book:3, misc:4 };
+
+    // ✅ 排序規則：
+    // 1) 依 typeOrder
+    // 2) 同類型再依 displayInvName 的字母/中文字排序
+    arr.sort((a, b)=>{
+      const ta = typeOrder[a.meta.type] ?? 99;
+      const tb = typeOrder[b.meta.type] ?? 99;
+      if(ta !== tb) return ta - tb;
+
+      const da = displayInvName(a.name);
+      const db = displayInvName(b.name);
+      return da.localeCompare(db, "zh-Hant");
+    });
+
+    // 依排序後結果畫列表
+    arr.forEach(({name, count, meta})=>{
+      const row   = document.createElement("div"); row.className = "row";
+      const right = document.createElement("div"); right.className = "right";
 
       let lineTitle = `<b>${displayInvName(name)}</b> × ${count}`;
       let extra = "";
-      if(meta.type==="equip"){
-        const eq=getEquipInstance(name);
-       extra = `｜ATK ${eq.atk||0} DEF ${eq.def||0} HP ${eq.hp||0} MP ${eq.mp||0}${eq.plus?`｜+${eq.plus}`:""}${affixShort(eq)}`;
-        right.append(btn("裝備",()=>equipItem(name)));
-        // 合成：白→綠→藍（同名 3 件）
-        const q=eq.qual||"白";
-        if(QUALITY_ORDER[q]<QUALITY_ORDER["藍"]){
-          const need=3;
-          let cnt=0;
-          Object.entries(game.inv).forEach(([k,v])=>{
-            const e2=getEquipInstance(k);
-            if(e2 && e2.name===eq.name && e2.qual===eq.qual){ cnt+=v; }
-          });
-          if(cnt>=need){ right.append(btn("合成升階",()=>{ combineEquip(name,need); })); }
-        }
-      }else if(meta.type==="consum"){
-        const def=itemDefs[meta.ref]||{};
-        extra = `｜${def.desc||""}`;
-        right.append(btn("使用",()=>{ useItem(name); renderInventoryList(); }));
-        // 藥水 2 合 1（只對治療藥水鏈）
-       const next = nextPotionName(meta.ref);
-if(next && (game.inv[name]||0) >= 2){
-  right.append(btn("合成→下一級",()=>{ combinePotion(meta.ref); renderInventoryList(); }));
-}
 
-      }else if(meta.type==="book"){
+      if(meta.type === "equip"){
+        const eq = getEquipInstance(name);
+        extra = `｜ATK ${eq.atk||0} DEF ${eq.def||0} HP ${eq.hp||0} MP ${eq.mp||0}${eq.plus?`｜+${eq.plus}`:""}${affixShort(eq)}`;
+        right.append(btn("裝備", ()=>equipItem(name)));
+
+        // 合成：白→綠→藍（同名 3 件）
+        const q = eq.qual || "白";
+        if(QUALITY_ORDER[q] < QUALITY_ORDER["藍"]){
+          const need = 3;
+          let cnt = 0;
+          Object.entries(game.inv).forEach(([k,v])=>{
+            const e2 = getEquipInstance(k);
+            if(e2 && e2.name === eq.name && e2.qual === eq.qual){ cnt += v; }
+          });
+          if(cnt >= need){
+            right.append(btn("合成升階", ()=>{ combineEquip(name, need); }));
+          }
+        }
+
+      }else if(meta.type === "consum"){
+        const def = itemDefs[meta.ref] || {};
+        extra = `｜${def.desc || ""}`;
+        right.append(btn("使用", ()=>{ useItem(name); renderInventoryList(); }));
+
+        // 藥水 2 合 1（只對治療藥水鏈）
+        const next = nextPotionName(meta.ref);
+        if(next && (game.inv[name] || 0) >= 2){
+          right.append(btn("合成→下一級", ()=>{ combinePotion(meta.ref); renderInventoryList(); }));
+        }
+
+      }else if(meta.type === "book"){
         const skillId = itemDefs[meta.ref]?.skill;
-        const sk=SKILL[skillId]; extra=`｜學習/升級：${sk?sk.name:"未知"}`;
-        right.append(btn("閱讀",()=>{ useBook(name); renderInventoryList(); }));
-      }else if(meta.type==="mount"){
-  const m = getMountInstance(name);
-  const mAtk = m?.atk||0, mDef = m?.def||0, mHp = m?.hp||0, mMp = m?.mp||0, mSpd = m?.spd||0;
-  extra = `｜ATK ${mAtk} DEF ${mDef} HP ${mHp} MP ${mMp} SPD ${mSpd}`;
-  right.append(btn("裝備坐騎",()=>{ equipMount(name); renderInventoryList(); }));
-}
+        const sk = SKILL[skillId];
+        extra = `｜學習/升級：${sk ? sk.name : "未知"}`;
+        right.append(btn("閱讀", ()=>{ useBook(name); renderInventoryList(); }));
+
+      }else if(meta.type === "mount"){
+        const m = getMountInstance(name);
+        const mAtk = m?.atk || 0,
+              mDef = m?.def || 0,
+              mHp  = m?.hp  || 0,
+              mMp  = m?.mp  || 0,
+              mSpd = m?.spd || 0;
+        extra = `｜ATK ${mAtk} DEF ${mDef} HP ${mHp} MP ${mMp} SPD ${mSpd}`;
+        right.append(btn("裝備坐騎", ()=>{ equipMount(name); renderInventoryList(); }));
+      }
 
       // 販售
-      right.append(btn("販售",()=>sellSingle(name)));
-      row.innerHTML=`<div>${lineTitle} <span class="tag">${extra}</span></div>`;
-      row.append(right); invList.appendChild(row);
+      right.append(btn("販售", ()=>sellSingle(name)));
+
+      row.innerHTML = `<div>${lineTitle} <span class="tag">${extra}</span></div>`;
+      row.append(right);
+      invList.appendChild(row);
     });
   }
+
   function invMeta(key){
     if(key.startsWith("E#")) return {type:"equip"};
     if(key.startsWith("M#")) return {type:"mount"};
@@ -3825,6 +3876,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
