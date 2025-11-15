@@ -688,7 +688,7 @@ const PLUS_DELTA = {
   黃:{atk:1,  def:1,  hp:5, mp:3},
   橘:{atk:1,  def:1,  hp:5, mp:3},
   紫:{atk:1, def:1,  hp:5, mp:3},
-  神器:{atk:25, def:15, hp:80, mp:50} // 神器獨立用
+  神器:{atk:5, def:4, hp:20, mp:12} // 神器獨立用
 };
 
 // 強化成功率（依品階、星數段）
@@ -1793,7 +1793,7 @@ say(`🎉 升級到 <b>Lv.${p.lvl}</b>！HP ${dhp>=0?"+":""}${dhp}, MP ${dmp>=0?
 
   function handleDrops(e){
    // 🌟 全地圖稀有掉落：ㄅㄅㄐ之錘（1% 機率，每次戰鬥結算判定一次）
-  if(Math.random() < 0.01){
+  if(Math.random() < 0.005){
     addInv("ㄅㄅㄐ之錘",1);
     say(`🌟 你獲得了稀有道具：<b>ㄅㄅㄐ之錘</b>！`);
   }
@@ -3169,6 +3169,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
