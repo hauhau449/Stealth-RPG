@@ -498,6 +498,7 @@ dialog{
     ・神器系統上線。<br>
     ・修復[ㄅㄅㄐ之槌]誤植永久加成。<br>
     ・修復掛機怪物連動2次問題。<br>
+    ・修改怪物掉落金錢量。<br>
   </div>
 </div>
   <!-- ⬇⬇⬇ 11/14更新如下 ⬇⬇⬇ -->
@@ -1108,6 +1109,8 @@ const MOUNTS={
     {name:"戰馬",type:"mount",price:10000},
   ];
 
+   // 💰 全局金幣倍率：1 = 原本數字，4 = 四倍金幣
+  const GOLD_RATE = 2;
   const CLASS_REQ=[10,30,70,120];
   const zones = buildZones();
 
@@ -1116,7 +1119,10 @@ const MOUNTS={
     mp: Math.round(lvl*0.6),
     atk: Math.round(4 + lvl*0.9),
     def: Math.round(1 + lvl*0.5),
-    gold:[3+Math.floor(lvl*0.6), 6+Math.floor(lvl*1.0)],
+  //  gold:[3+Math.floor(lvl*0.6), 6+Math.floor(lvl*1.0)],
+        gold:[
+      Math.round((3+Math.floor(lvl*0.6)) * GOLD_RATE),
+      Math.round((6+Math.floor(lvl*1.0)) * GOLD_RATE)],
     exp:[10+Math.floor(lvl*1.8), 18+Math.floor(lvl*2.6)],
     drops: baseDropsForLevel(lvl,labelTag),
     tag: labelTag
@@ -2023,6 +2029,8 @@ function handleDrops(e){
   });
 }
 
+
+  
   // ===========================================
 // 🟣 相容層：讓 handleDrops() 呼叫到的接口存在
 // 內部直接沿用你現有的 rollArtifactAffix() 結果
@@ -2159,13 +2167,14 @@ if(next && (game.inv[name]||0) >= 2){
     const skill = itemDefs[meta.ref]?.skill; if(!skill) return;
     learnOrUpgradeSkill(skill, meta.ref);
   }
+
+  
 /* === 技能書升級設定 ===========================
    可改參數（依你喜好調整）
 ----------------------------------------------- */
 const SKILL_MAX_LV = 25;           // 每個品質的等級上限（原本 25）
 const SKILL_QUALITY_UP = true;     // 滿級後是否升一階品質並重置等級
 const SKILL_UP_GOLD_COST = 0;      // 升級額外需要的金幣（0=不需要）
-
 // 升級需求模式：選一種
 //  "pow2"   : 2^當前等級（原本的作法，如 Lv1→1本，Lv2→2本，Lv3→4本…）
 //  "linear" : 每級固定 1 本
@@ -2627,13 +2636,30 @@ function failDropChance(inst){
     return 1.0;
   }*/
   //強化費用
- function enhCost(inst){
-  const q=inst.qual, p=inst.plus||0, s=inst.stars||0;
-  const tierCost = {藍:200, 黃:500, 橘:1200, 紫:3000};
-  const starMul  = 1 + 0.5*(s||0); // 紫/神器升星越高費用越貴
-  const base = tierCost[q] || (inst.name?.startsWith("[神器_") ? 4000 : 0);
-  return Math.round((base + p*100) * starMul);
+function enhCost(inst){
+  const p = inst.plus || 0;       // +0～+9
+  const s = inst.stars || 0;      // ☆0～5
+  const q = inst.qual || "";      // 品質
+
+  // 品質基礎價格
+  const tierCost = {
+    藍:200,
+    黃:500,
+    橘:1200,
+    紫:3000,
+    神器:4000   // ← 神器改成依品質判斷，不看名字
+  };
+
+  // 若找不到 → base=0（白／綠不可強化會被外層擋掉）
+  const base = tierCost[q] || 0;
+
+  // 星數倍率：每 1☆ 多 +0.5 倍
+  const starMul = 1 + 0.5 * s;
+
+  // 強化費用： (base + plus*100) * 星數倍率
+  return Math.round((base + p * 100) * starMul);
 }
+
 
 enhBtnDo.onclick=()=>{
   const inst = getEquipInstance(enhTargetId);
@@ -3342,7 +3368,7 @@ doRebirthBtn.onclick = ()=>{ doRebirth(); };
     if(roll<=62 || z.boss){
       startBattle();
     }else if(roll<=85){
-      const g=Math.round(rnd(3,10)* (1 + (game.player.equip.mount?0.1:0)));
+      const g=Math.round(rnd(3,10)*GOLD_RATE* (1 + (game.player.equip.mount?0.1:0)));
       game.player.gold+=g; say(`你在 ${z.name} 拾獲 <b>${g}G</b>。`);
     }else{
       const options = ["小治療藥水","小魔力藥水"];
@@ -3387,6 +3413,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
