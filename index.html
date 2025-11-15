@@ -488,7 +488,6 @@ dialog{
     ・地圖重新調整。<br>
     ・坐騎強度待調整。<br>
     ・怪物強度待調整。<br>
-    ・任務系統待調整。<br>
   </div>
 </div>
    <!-- ⬇⬇⬇ 11/15更新如下 ⬇⬇⬇ -->
@@ -499,6 +498,7 @@ dialog{
     ・修復[ㄅㄅㄐ之槌]誤植永久加成。<br>
     ・修復掛機怪物連動2次問題。<br>
     ・修改怪物掉落金錢量。<br>
+    ・任務系統重新製作。<br>
   </div>
 </div>
   <!-- ⬇⬇⬇ 11/14更新如下 ⬇⬇⬇ -->
@@ -1054,6 +1054,7 @@ const XP_SCROLL_RATE = 2.0;
     "中魔力藥水":{type:"consum",desc:"回復 150~300 MP", use:(p)=>{ const v=rnd(150,300); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>中魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
     "大魔力藥水":{type:"consum",desc:"回復 500~750 MP", use:(p)=>{ const v=rnd(500,750); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>大魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
     "特級魔力藥水":{type:"consum",desc:"回復 50% MP", use:(p)=>{ const v=Math.ceil(p.maxmp*0.5); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>特級魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
+        "任務藥水":{type:"consum",desc:"任務專用道具，可交付給任務換取報酬。"},
     "煙霧彈":{type:"consum",desc:"戰鬥中嘗試脫離",  use:(p,e,inBattle)=>{ if(inBattle){ say("你投擲了煙霧彈！你逃離了戰鬥。"); endBattle(false); } else { say("你在空地放了煙……好像有點招搖。"); } }},
     "經驗加倍捲":{type:"consum",desc:"5 日內經驗 +100%，可疊加", use:(p)=>{ addXpBuff(5); say(`📜 使用 <b>經驗加倍捲</b>：5 日加倍生效（目前層數 ${activeXpBuffs()}）。`);} }, // [NEW]
     "技能書：活力":{type:"book", skill:"vitality"},
@@ -1066,6 +1067,19 @@ const XP_SCROLL_RATE = 2.0;
     "ㄅㄅㄐ之錘":{type:"consum",desc:"本次神器強化每顆 +1% 成功率（可疊加，強化後歸零）。",use:(p)=>{if(!game.buffs) game.buffs={xpLayers:[],artiHammer:0};game.buffs.artiHammer = (game.buffs.artiHammer||0) + 1;
     decInv("ㄅㄅㄐ之錘",1);
     say(`🔧 你使用了 ㄅㄅㄐ之錘，神器強化成功率加成：+${game.buffs.artiHammer}%`);
+  }
+},
+"錢袋": {
+  type:"consum",
+  desc:"打開可獲得隨機 100～2000 金幣。",
+  use:(p)=>{
+    if(!game || !game.player) return;
+    const g = rnd(100,2000);           // 隨機 100~2000
+    game.player.gold += g;             // 加到玩家金幣
+    decInv("錢袋",1);                  // 背包扣一個錢袋
+    say(`💰 你打開了 <b>錢袋</b>，獲得 <b>${g}</b> G！`);
+    render();
+    autosave();
   }
 },
 
@@ -1348,7 +1362,13 @@ function qualWithStars(inst){
         Object.assign(game.player, data.player||{});
         game.inv=data.inv||game.inv;
         game.state={...game.state, ...(data.state||{})};
+                // 任務：舊存檔兼容＆新格式初始化
         game.quests=data.quests||[];
+        if(!Array.isArray(game.quests)) game.quests=[];
+        // 如果是舊版存檔（沒有 type），或根本沒任務，就用新系統重建
+        if(game.quests.length===0 || !game.quests[0].type){
+          seedQuests();
+        }
         game.shop=data.shop||{stock:[]};
         game.buffs=data.buffs||{xpLayers:[]};
         // 反序列化 DB
@@ -1361,9 +1381,70 @@ function qualWithStars(inst){
     }catch(e){}
   }
 
+  /* ========= 任務資料表 ========= */
+  const QUEST_DB = [
+    {
+      id:"Q_KILL_01",
+      type:"killAny",
+      minLvl:1,
+      name:"新手訓練：擊敗 20 隻怪物",
+      desc:"在任何地區擊敗 20 隻怪物，熟悉戰鬥節奏。",
+      req:{ killAny:20 },
+      reward:{ exp:200, gold:150 }
+    },
+    {
+      id:"Q_KILL_02",
+      type:"killAny",
+      minLvl:20,
+      name:"熟練冒險者：擊敗 50 隻怪物",
+      desc:"持續戰鬥，讓自己成為更可靠的主力。",
+      req:{ killAny:50 },
+      reward:{ exp:600, gold:500, item:"錢袋", itemCount:1 }
+    },
+    {
+      id:"Q_ITEM_POTION",
+      type:"submitItem",
+      minLvl:10,
+      name:"物資補給：交付任務藥水 5 瓶",
+      desc:"任務小隊需要補給，收集 5 瓶任務藥水交付。",
+      req:{ submitItems:{ "任務藥水":5 } },
+      reward:{ exp:250, gold:300 }
+    },
+    {
+      id:"Q_EQUIP_GREEN",
+      type:"submitEquip",
+      minLvl:15,
+      name:"裝備回收：交出 3 件綠裝",
+      desc:"把不用的綠裝回收，換取一些實用資源。",
+      req:{ submitEquip:{ green:3 } },
+      reward:{ exp:300, gold:400 }
+    },
+    {
+      id:"Q_EQUIP_BLUE",
+      type:"submitEquip",
+      minLvl:30,
+      name:"精良裝備整理：交出 2 件藍裝",
+      desc:"整理多餘的藍裝，協助工坊研究神器。",
+      req:{ submitEquip:{ blue:2 } },
+      reward:{ exp:800, gold:800, item:"錢袋", itemCount:2 }
+    }
+  ];
+
   function seedQuests(){
-    game.quests = [];
-    refreshQuestsForLevel(1);
+    const lvl = game.player?.lvl || 1;
+    game.quests = QUEST_DB.map(def=>({
+      id: def.id,
+      type: def.type,
+      minLvl: def.minLvl || 1,
+      name: def.name,
+      desc: def.desc,
+      req: JSON.parse(JSON.stringify(def.req || {})),
+      reward: { ...(def.reward || {}) },
+      state: (lvl >= (def.minLvl || 1)) ? "available" : "locked",
+      progress: {}
+    }));
+    // 依目前等級刷新一次可接受狀態
+    refreshQuestsForLevel(lvl);
   }
 
   /* ========= 地圖生成 ========= */
@@ -2984,53 +3065,262 @@ function sellPrice(name){
   }
 
   /* ========= 任務 ========= */
+
+  // 依等級解鎖可接受任務（從 locked → available）
   function refreshQuestsForLevel(lvl){
-    const z=currentZone();
-    const targetName = (z.pool[0]||{name:"史萊姆"}).name;
-    const need = 10 + Math.floor(lvl/10)*2;
-    const reward = { exp: 40+lvl*3, gold: 20+lvl*2 };
-    const blueCandidate = ["木劍","皮甲","法杖","匕首","學者斗篷","幸運戒指"][rnd(0,5)];
-    const qid="QL"+lvl;
-    game.quests = game.quests.filter(q=>q.id!==qid);
-    game.quests.push({ id:qid, name:`清掃：${targetName}`, desc:`擊敗 ${targetName} × ${need}。`, req:{kill:{[targetName]:need}}, reward, state:"active", progress:{kill:{[targetName]:0}}, bonusEquip: blueCandidate });
-  }
-  function renderQuestList(){
-    const box=$("#questList"); box.innerHTML="";
+    if(!Array.isArray(game.quests)) return;
     game.quests.forEach(q=>{
-      const row=document.createElement("div"); row.className="row";
-      const st=q.state==="done"?"✅ 完成":q.state==="active"?"🟡 進行中":"🔒 未解鎖";
-      row.innerHTML=`<div><b>${q.name}</b> <span class="tag">（${st}）</span><br><span class="muted">${q.desc}</span><br><span class="tag">${formatQuestProgress(q)}</span></div>`;
-      box.appendChild(row);
-    });
-  }
-  function formatQuestProgress(q){
-    if(q.req?.kill){
-      return "擊殺進度：" + Object.entries(q.req.kill).map(([n,need])=>{
-        const cur=q.progress?.kill?.[n]||0; return `${n}：${Math.min(cur,need)}/${need}`;
-      }).join("、");
-    }
-    return '';
-  }
-  function updateQuestProgressOnKill(name){
-    game.quests.forEach(q=>{
-      if(q.state!=="active") return;
-      if(q.req?.kill && q.req.kill[name]!=null){
-        q.progress=q.progress||{kill:{}}; q.progress.kill[name]=Math.min((q.progress.kill[name]||0)+1, q.req.kill[name]);
-        checkQuestDone(q);
+      const need = q.minLvl || 1;
+      if(q.state === "locked" && lvl >= need){
+        q.state = "available";
       }
     });
   }
-  function checkQuestDone(q){
-    let ok=true;
-    if(q.req?.kill){ for(const [n,need] of Object.entries(q.req.kill)){ const cur=q.progress?.kill?.[n]||0; if(cur<need){ok=false;break;} } }
-    if(ok){
-      q.state="done";
-      grantReward(q.reward);
-      if(q.bonusEquip){ addEquipToInv(q.bonusEquip,"藍"); }
-      say(`📜 任務完成：<b>${q.name}</b>！獎勵已發放。`);
+
+  // 計算指定品質裝備數量（綠 / 藍）
+  function countEquipsByQuality(qual){
+    let cnt = 0;
+    for(const [k,v] of Object.entries(game.inv)){
+      if(!k.startsWith("E#") || v<=0) continue;
+      const inst = getEquipInstance(k);
+      if(inst && inst.qual === qual){
+        cnt += v;
+      }
+    }
+    return cnt;
+  }
+
+  // 由背包中扣除指定品質裝備（用於任務提交）
+  function removeEquipsByQuality(qual, need){
+    if(need <= 0) return true;
+    const toRemove = [];
+    for(const [k,v] of Object.entries(game.inv)){
+      if(!k.startsWith("E#") || v<=0) continue;
+      const inst = getEquipInstance(k);
+      if(!inst || inst.qual !== qual) continue;
+      const use = Math.min(v, need);
+      if(use > 0){
+        toRemove.push([k, use]);
+        need -= use;
+        if(need <= 0) break;
+      }
+    }
+    if(need > 0) return false;
+    toRemove.forEach(([k,c])=>decInv(k,c));
+    return true;
+  }
+
+  function findQuestDef(id){
+    return QUEST_DB.find(d=>d.id === id);
+  }
+
+  function renderQuestList(){
+    const box = $("#questList");
+    box.innerHTML = "";
+
+    if(!Array.isArray(game.quests) || game.quests.length === 0){
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = "<div>目前沒有任務。</div>";
+      box.appendChild(row);
+      return;
+    }
+
+    game.quests.forEach(q=>{
+      const row = document.createElement("div");
+      row.className = "row";
+
+      let st;
+      switch(q.state){
+        case "done":      st = "✅ 可領取"; break;
+        case "active":    st = "🟡 進行中"; break;
+        case "rewarded":  st = "✔ 已完成"; break;
+        case "available": st = "📜 可接受"; break;
+        default:          st = "🔒 未解鎖"; break;
+      }
+
+      const needSubmitBtn = (q.state === "active") &&
+        (q.req?.submitItems || q.req?.submitEquip);
+
+      row.innerHTML = `
+        <div>
+          <b>${q.name}</b> <span class="tag">${st}</span><br>
+          <span class="muted">${q.desc}</span><br>
+          <span class="tag">${formatQuestProgress(q)}</span><br>
+          ${q.state === "available"
+            ? `<button class="btn tiny" data-act="accept" data-qid="${q.id}">接受</button>`
+            : ""}
+          ${needSubmitBtn
+            ? `<button class="btn tiny" data-act="submit" data-qid="${q.id}">提交</button>`
+            : ""}
+          ${q.state === "done"
+            ? `<button class="btn tiny" data-act="reward" data-qid="${q.id}">領取獎勵</button>`
+            : ""}
+        </div>
+      `;
+
+      row.onclick = (ev)=>{
+        const btn = ev.target.closest("button[data-act]");
+        if(!btn) return;
+        const act = btn.dataset.act;
+        const id  = btn.dataset.qid;
+        const qq  = game.quests.find(x=>x.id === id);
+        if(!qq) return;
+
+        if(act === "accept")      acceptQuest(qq);
+        else if(act === "submit") trySubmitQuest(qq);
+        else if(act === "reward") claimQuestReward(qq);
+
+        renderQuestList();
+        autosave();
+      };
+
+      box.appendChild(row);
+    });
+  }
+
+  function formatQuestProgress(q){
+    const req = q.req || {};
+    // 擊殺任意怪物
+    if(req.killAny){
+      const cur = q.progress?.killAny || 0;
+      return `擊敗任意怪物：${cur} / ${req.killAny}`;
+    }
+    // 提交指定道具
+    if(req.submitItems){
+      const parts = [];
+      for(const [name,need] of Object.entries(req.submitItems)){
+        const have = game.inv[name] || 0;
+        parts.push(`${name}：${have} / ${need}`);
+      }
+      return "提交道具：" + parts.join("，");
+    }
+    // 提交指定品質裝備
+    if(req.submitEquip){
+      const parts = [];
+      if(req.submitEquip.green){
+        const g = countEquipsByQuality("綠");
+        parts.push(`綠裝：${g} / ${req.submitEquip.green}`);
+      }
+      if(req.submitEquip.blue){
+        const b = countEquipsByQuality("藍");
+        parts.push(`藍裝：${b} / ${req.submitEquip.blue}`);
+      }
+      return "提交裝備：" + parts.join("，");
+    }
+    return "—";
+  }
+
+  function acceptQuest(q){
+    if(q.state !== "available") return;
+    q.state = "active";
+    if(!q.progress) q.progress = {};
+    say(`📜 接受任務：<b>${q.name}</b>`);
+  }
+
+  function trySubmitQuest(q){
+    if(q.state !== "active") return;
+    const req = q.req || {};
+
+    // 提交道具
+    if(req.submitItems){
+      for(const [name,need] of Object.entries(req.submitItems)){
+        const have = game.inv[name] || 0;
+        if(have < need){
+          say(`❌ ${name} 不足，還需要 ${need - have} 瓶。`);
+          return;
+        }
+      }
+      // 扣除
+      for(const [name,need] of Object.entries(req.submitItems)){
+        decInv(name, need);
+      }
+      q.state = "done";
+      say(`📦 你已提交任務道具，<b>${q.name}</b> 已可領取獎勵。`);
+      return;
+    }
+
+    // 提交裝備
+    if(req.submitEquip){
+      if(req.submitEquip.green){
+        const okG = removeEquipsByQuality("綠", req.submitEquip.green);
+        if(!okG){
+          const cur = countEquipsByQuality("綠");
+          say(`❌ 綠裝不足，還需要 ${req.submitEquip.green - cur} 件。`);
+          return;
+        }
+      }
+      if(req.submitEquip.blue){
+        const okB = removeEquipsByQuality("藍", req.submitEquip.blue);
+        if(!okB){
+          const cur = countEquipsByQuality("藍");
+          say(`❌ 藍裝不足，還需要 ${req.submitEquip.blue - cur} 件。`);
+          return;
+        }
+      }
+      q.state = "done";
+      say(`📦 你已提交裝備，<b>${q.name}</b> 已可領取獎勵。`);
     }
   }
-  function grantReward(r){ if(r.exp) gainExp(r.exp); if(r.gold) game.player.gold+=r.gold; render(); }
+
+  function claimQuestReward(q){
+    if(q.state !== "done") return;
+    grantReward(q.reward);
+    q.state = "rewarded";
+    say(`🎉 任務完成：<b>${q.name}</b>！`);
+  }
+
+  // 擊殺任意怪物的進度更新
+  function updateQuestProgressOnKill(name){
+    if(!Array.isArray(game.quests)) return;
+    game.quests.forEach(q=>{
+      if(q.state !== "active") return;
+      const req = q.req || {};
+      if(req.killAny){
+        if(!q.progress) q.progress = {};
+        const cur = q.progress.killAny || 0;
+        q.progress.killAny = cur + 1;
+        if(q.progress.killAny >= req.killAny){
+          q.state = "done";
+          say(`📜 任務完成：<b>${q.name}</b>！請回任務欄領取獎勵。`);
+        }
+      }
+    });
+  }
+
+  // 目前只給 killAny 任務用；預留未來擴充
+  function checkQuestDone(q){
+    const req = q.req || {};
+    if(req.killAny){
+      const cur = q.progress?.killAny || 0;
+      if(cur >= req.killAny){
+        q.state = "done";
+      }
+    }
+  }
+
+  function grantReward(r){
+    if(!r) return;
+    if(r.exp)  gainExp(r.exp);
+    if(r.gold) game.player.gold += r.gold;
+
+    // 單一物品
+    if(r.item){
+      const c = r.itemCount || 1;
+      addInv(r.item, c);
+      say(`🎁 獲得 ${r.item} ×${c}`);
+    }
+
+    // 多個物品
+    if(r.items){
+      for(const [name,c] of Object.entries(r.items)){
+        addInv(name, c);
+        say(`🎁 獲得 ${name} ×${c}`);
+      }
+    }
+    render();
+    autosave();
+  }
 
   /* ========= 轉職 ========= */
  function checkUnlocks(){
@@ -3413,6 +3703,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
