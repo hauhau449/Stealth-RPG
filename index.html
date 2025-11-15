@@ -1152,16 +1152,7 @@ const MOUNTS={
 
  
 
-  function baseDropsForLevel(lvl,tag){
-    const base = [
-      {item:"技能書：活力",rate:0.06},
-      {item:"技能書：專注",rate:0.05},
-      {item:"技能書：火球術",rate:0.04},
-      {item:"技能書：連擊",rate:0.04},
-      {item:"技能書：猛擊",rate:0.04},
-    ];
-
-     function baseDropsForLevel(lvl,tag){
+ function baseDropsForLevel(lvl,tag){
   const base = [
     {item:"技能書：活力",rate:0.06},
     {item:"技能書：專注",rate:0.05},
@@ -1202,32 +1193,25 @@ const MOUNTS={
     {item:"任務藥水", rate:0.12}
   );
 
-  // ...後面你原本 base 其他掉落邏輯照舊...
+  // 低等區域白裝掉落（1~30 等）
+  if(lvl<=30){
+    base.push(
+      {equip:"木劍",rate:0.05},
+      {equip:"皮甲",rate:0.05},
+      {equip:"法杖",rate:0.03},
+      {equip:"匕首",rate:0.04},
+      {equip:"學者斗篷",rate:0.03},
+      {equip:"幸運戒指",rate:0.03}
+    );
+  }
+
+  // Boss / Mimic 額外掉落
+  if(tag==="boss" || tag==="mimic"){
+    base.push({item:"秘傳：萬斬",rate:0.08});
+  }
 
   return base;
 }
-;
-
-
-    // 低等區域白裝掉落（1~30 等）
-    if(lvl<=30){
-      base.push(
-        {equip:"木劍",rate:0.05},
-        {equip:"皮甲",rate:0.05},
-        {equip:"法杖",rate:0.03},
-        {equip:"匕首",rate:0.04},
-        {equip:"學者斗篷",rate:0.03},
-        {equip:"幸運戒指",rate:0.03}
-      );
-    }
-
-    // Boss / Mimic 額外掉落
-    if(tag==="boss" || tag==="mimic"){
-      base.push({item:"秘傳：萬斬",rate:0.08});
-    }
-
-    return base;
-  }
 
   /* ========= 狀態 ========= */
 
@@ -3964,6 +3948,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
