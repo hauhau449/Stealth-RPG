@@ -1054,7 +1054,15 @@ const XP_SCROLL_RATE = 2.0;
     "中魔力藥水":{type:"consum",desc:"回復 150~300 MP", use:(p)=>{ const v=rnd(150,300); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>中魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
     "大魔力藥水":{type:"consum",desc:"回復 500~750 MP", use:(p)=>{ const v=rnd(500,750); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>大魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
     "特級魔力藥水":{type:"consum",desc:"回復 50% MP", use:(p)=>{ const v=Math.ceil(p.maxmp*0.5); p.mp=clamp(p.mp+v,0,p.maxmp); say(`你使用 <b>特級魔力藥水</b>，回復 <b>${v} MP</b>。`);} },
-        "任務藥水":{type:"consum",desc:"任務專用道具，可交付給任務換取報酬。"},
+        "任務藥水": {
+      type:"consum",
+      desc:"任務專用道具，可交付給任務換取報酬。",
+      use:(p)=>{
+        // 可以選擇「不能直接喝」，只做提示
+        say("這是一瓶任務藥水，請交給相關任務使用。");
+      }
+    },
+
     "煙霧彈":{type:"consum",desc:"戰鬥中嘗試脫離",  use:(p,e,inBattle)=>{ if(inBattle){ say("你投擲了煙霧彈！你逃離了戰鬥。"); endBattle(false); } else { say("你在空地放了煙……好像有點招搖。"); } }},
     "經驗加倍捲":{type:"consum",desc:"5 日內經驗 +100%，可疊加", use:(p)=>{ addXpBuff(5); say(`📜 使用 <b>經驗加倍捲</b>：5 日加倍生效（目前層數 ${activeXpBuffs()}）。`);} }, // [NEW]
     "技能書：活力":{type:"book", skill:"vitality"},
@@ -1064,7 +1072,7 @@ const XP_SCROLL_RATE = 2.0;
     "技能書：破甲斬":{type:"book", skill:"armorbreak"},
     "技能書：猛擊":{type:"book", skill:"armorbreak"},
     "秘傳：萬斬":{type:"book", skill:"omnislash"},
-    "ㄅㄅㄐ之錘":{type:"consum",desc:"本次神器強化每顆 +1% 成功率（可疊加，強化後歸零）。",use:(p)=>{if(!game.buffs) game.buffs={xpLayers:[],artiHammer:0};game.buffs.artiHammer = (game.buffs.artiHammer||0) + 1;
+    "ㄅㄅㄐ之錘":{type:"consum",desc:"本次神器強化每使用1槌 +1% 成功率（可疊加，強化後歸零）。",use:(p)=>{if(!game.buffs) game.buffs={xpLayers:[],artiHammer:0};game.buffs.artiHammer = (game.buffs.artiHammer||0) + 1;
     decInv("ㄅㄅㄐ之錘",1);
     say(`🔧 你使用了 ㄅㄅㄐ之錘，神器強化成功率加成：+${game.buffs.artiHammer}%`);
   }
@@ -1142,6 +1150,8 @@ const MOUNTS={
     tag: labelTag
   };}
 
+ 
+
   function baseDropsForLevel(lvl,tag){
     const base = [
       {item:"技能書：活力",rate:0.06},
@@ -1150,15 +1160,38 @@ const MOUNTS={
       {item:"技能書：連擊",rate:0.04},
       {item:"技能書：猛擊",rate:0.04},
     ];
-    base.push({item:"小治療藥水",rate:0.14},{item:"小魔力藥水",rate:0.12});
+
+       // 基本藥水掉落
+    base.push(
+      {item:"小治療藥水",rate:0.14},
+      {item:"小魔力藥水",rate:0.12},
+      // 任務藥水：實際掉不掉會在 handleDrops() 再判斷
+      {item:"任務藥水", rate:0.12}
+    );
+
+
+    // 低等區域白裝掉落（1~30 等）
     if(lvl<=30){
-      base.push({equip:"木劍",rate:0.05},{equip:"皮甲",rate:0.05},{equip:"法杖",rate:0.03},{equip:"匕首",rate:0.04},{equip:"學者斗篷",rate:0.03},{equip:"幸運戒指",rate:0.03});
+      base.push(
+        {equip:"木劍",rate:0.05},
+        {equip:"皮甲",rate:0.05},
+        {equip:"法杖",rate:0.03},
+        {equip:"匕首",rate:0.04},
+        {equip:"學者斗篷",rate:0.03},
+        {equip:"幸運戒指",rate:0.03}
+      );
     }
-    if(tag==="boss"||tag==="mimic"){ base.push({item:"秘傳：萬斬",rate:0.08}); }
+
+    // Boss / Mimic 額外掉落
+    if(tag==="boss" || tag==="mimic"){
+      base.push({item:"秘傳：萬斬",rate:0.08});
+    }
+
     return base;
   }
 
   /* ========= 狀態 ========= */
+
   const game = {
     player:{
   name:"你", job:"Novice", tier:0, lvl:1, exp:0,
@@ -2076,6 +2109,19 @@ function dropArtifactFragmentFromBoss(bossName){
   say(`🧩 你獲得神器碎片：<b>${fragName}</b>！`);
 }
 
+// 🔍 檢查：目前是否有「需要任務藥水」的進行中任務
+function hasActiveQuestNeedTaskPotion(){
+  const qs = Array.isArray(game.quests) ? game.quests : [];
+  return qs.some(q=>{
+    if(q.state !== "active") return false;
+    const req = q.req || {};
+    // 新任務系統：使用 submitItems 形式
+    if(req.submitItems && req.submitItems["任務藥水"]) return true;
+    // 舊格式相容：如果有寫 req.item / req.count
+    if(req.item === "任務藥水" && (req.count || 0) > 0) return true;
+    return false;
+  });
+}
 
   
 function handleDrops(e){
@@ -2086,11 +2132,20 @@ function handleDrops(e){
   }
 
   (e.drops || []).forEach(d=>{
-    // 一般道具
+      // 一般道具
     if(d.item && Math.random() < d.rate){
+
+      // 任務藥水特殊規則：
+      // 只有在有「需要任務藥水」的進行中任務時，才會真的掉
+      if(d.item === "任務藥水" && !hasActiveQuestNeedTaskPotion()){
+        // 沒有相關任務，這次就當作沒掉
+        return;
+      }
+
       addInv(d.item,1);
       say(`📖 掉落：<b>${d.item}</b>！`);
     }
+
 
     // 白裝
     if(d.equip && Math.random() < d.rate){
@@ -3087,6 +3142,7 @@ function sellPrice(name){
 
   /* ========= 任務 ========= */
 
+  
   // 依等級解鎖可接受任務（從 locked → available）
   function refreshQuestsForLevel(lvl){
     if(!Array.isArray(game.quests)) return;
@@ -3724,6 +3780,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
