@@ -3208,7 +3208,20 @@ function sellPrice(name){
     }
     return parts.join("、");
   }
+  
+// ✅ 遊戲載入或需要時檢查：如果所有任務都已領獎，就刷新一輪
+function refreshQuestsIfAllRewarded(){
+  const qs = Array.isArray(game.quests) ? game.quests : [];
+  if(qs.length === 0) return; // 沒任務就先不管，通常 init 會自己 seed
 
+  const allRewarded = qs.every(q => q.state === "rewarded");
+  if(allRewarded){
+    say("📜 檢測到所有任務都已完成，已刷新新一輪任務！");
+    seedQuests();
+    renderQuestList();
+    autosave();
+  }
+}
   
   function renderQuestList(){
     const box = $("#questList");
@@ -3372,16 +3385,9 @@ function sellPrice(name){
     const text = formatQuestReward(q.reward);
     say(`🎉 任務完成：<b>${q.name}</b>！獲得獎勵：<b>${text}</b>`);
 
-    // 🌟 如果所有任務都已領獎，刷新新一輪任務
-    if(Array.isArray(game.quests) && game.quests.length > 0){
-      const allDone = game.quests.every(qq => qq.state === "rewarded");
-      if(allDone){
-        say("📜 所有任務已完成，已刷新新一輪任務！");
-        seedQuests();
-        renderQuestList();
-        autosave();
-      }
-    }
+    // 🌟 檢查是否所有任務已領獎，如果是就刷新
+    refreshQuestsIfAllRewarded();
+
   }
 
 
@@ -3819,6 +3825,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
