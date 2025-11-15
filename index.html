@@ -329,6 +329,8 @@ dialog{
   <div class="dlg">
     <h4>🎒 背包</h4>
     <div class="row" id="invFilters"></div>
+    <!-- ⬇ 新增：裝備比較顯示區 ⬇ -->
+    <div id="equipCompare" class="hint" style="margin:4px 0 6px 0"></div>
     <div class="list" id="invList"></div>
     <div class="row" style="justify-content:flex-end;margin-top:8px">
       <button class="btn small" id="closeInv">關閉</button>
@@ -426,6 +428,8 @@ dialog{
     <div id="enhInfo" class="list"></div>
     <div class="row" style="justify-content:flex-end;margin-top:8px">
       <button class="btn small" id="enhBtnDo">強化</button>
+            <!-- ⬇ 新增：合成升階按鈕 ⬇ -->
+      <button class="btn small" id="enhBtnCombine">合成升階</button>
       <button class="btn small" id="closeEnh">關閉</button>
     </div>
   </div>
@@ -2265,12 +2269,19 @@ function rollArtifactStatsForSlot() {
 }
 //===========================================
   /* ========= 背包 / 裝備 / 強化 / 合成 ========= */
-  const invDlg=$("#invDlg"), invList=$("#invList"), invFilters=$("#invFilters");
+  const invDlg=$("#invDlg"), invList=$("#invList"), invFilters=$("#invFilters"), equipCompare=$("#equipCompare");
+
   const invCats=[
     {key:"all",name:"全部"}, {key:"consum",name:"消耗"}, {key:"equip",name:"裝備"}, {key:"book",name:"技能書"}, {key:"mount",name:"坐騎"}
   ];
-  let invFilter="all";
-  function openInventory(){ renderInvFilters(); renderInventoryList(); invDlg.showModal(); }
+let invFilter="all";
+function openInventory(){
+  if(equipCompare) equipCompare.innerHTML = "";   // 打開背包先清空比較
+  renderInvFilters();
+  renderInventoryList();
+  invDlg.showModal();
+}
+
   function renderInvFilters(){
     invFilters.innerHTML="";
     invCats.forEach(c=>{
@@ -2374,6 +2385,15 @@ function rollArtifactStatsForSlot() {
         extra = `｜ATK ${mAtk} DEF ${mDef} HP ${mHp} MP ${mMp} SPD ${mSpd}`;
         right.append(btn("裝備坐騎", ()=>{ equipMount(name); renderInventoryList(); }));
       }
+      
+      // 點整列來預覽＆比較（按鈕本身不觸發）
+      row.onclick = (ev)=>{
+        if(ev.target.closest("button")) return;   // 點到按鈕就交給原本功能
+        if(meta.type === "equip"){
+          const eqInst = getEquipInstance(name);
+          if(eqInst) showEquipCompare(name, eqInst);
+        }
+      };
 
       // 販售
       right.append(btn("販售", ()=>sellSingle(name)));
@@ -2383,7 +2403,52 @@ function rollArtifactStatsForSlot() {
       invList.appendChild(row);
     });
   }
+  // 顯示裝備比較（背包選取 vs 身上裝備）
+  function showEquipCompare(id, eq){
+    if(!equipCompare) return;
 
+    const p = game.player;
+    const slot = eq.slot;
+
+    // 只有武器 / 防具 / 飾品有比較意義
+    if(!slot || !["weapon","armor","acc"].includes(slot)){
+      equipCompare.innerHTML = `<div class="hint">此裝備沒有對應比較槽位。</div>`;
+      return;
+    }
+
+    const eid = p.equip[slot];
+    if(!eid){
+      equipCompare.innerHTML = `<div class="hint">目前此槽位尚未裝備任何裝備。</div>`;
+      return;
+    }
+
+    const cur = getEquipInstance(eid);
+    if(!cur){
+      equipCompare.innerHTML = `<div class="hint">目前身上裝備資料異常，請重新裝備一次。</div>`;
+      return;
+    }
+
+    const diff = (a,b)=>{
+      const d = (a||0) - (b||0);
+      if(d > 0) return `+${d}`;
+      if(d < 0) return `${d}`;
+      return "0";
+    };
+
+    equipCompare.innerHTML = `
+      <div class="row" style="flex-direction:column;align-items:flex-start">
+        <div><b>目前裝備：</b>${displayEquipName(eid)}｜ATK ${cur.atk||0} DEF ${cur.def||0} HP ${cur.hp||0} MP ${cur.mp||0}</div>
+        <div><b>背包選取：</b>${displayEquipName(id)}｜ATK ${eq.atk||0} DEF ${eq.def||0} HP ${eq.hp||0} MP ${eq.mp||0}</div>
+        <div><b>差異（背包 − 身上）：</b>
+          ATK ${diff(eq.atk,cur.atk)}／
+          DEF ${diff(eq.def,cur.def)}／
+          HP ${diff(eq.hp,cur.hp)}／
+          MP ${diff(eq.mp,cur.mp)}
+        </div>
+      </div>
+    `;
+  }
+  
   function invMeta(key){
     if(key.startsWith("E#")) return {type:"equip"};
     if(key.startsWith("M#")) return {type:"mount"};
@@ -2719,65 +2784,134 @@ function addEquip(inst){
 }
 
   
-  // 合成（同名裝備 ×3 → 下一品質；上限藍）
-  function combineEquip(id,need){
-    const inst=getEquipInstance(id); if(!inst) return;
-    const q=inst.qual||"白"; if(QUALITY_ORDER[q]>=QUALITY_ORDER["藍"]) return say("已達合成上限。");
-    let cnt=0, keys=[];
-    Object.entries(game.inv).forEach(([k,v])=>{
-      const eq=getEquipInstance(k); if(eq && eq.name===inst.name && eq.qual===inst.qual){ cnt+=v; keys.push([k,v]); }
-    });
-    if(cnt<need) return say(`需要同名同品質裝備 ${need} 件（目前 ${cnt}）`);
-    let left=need;
-    for(const [k,v] of keys){
-      const take = Math.min(v,left); decInv(k,take); left-=take; if(left<=0) break;
+    // 合成（同名裝備 ×3 → 下一品質；上限藍）
+  function combineEquip(id, need){
+    const inst = getEquipInstance(id);
+    if(!inst) return;
+
+    const q = inst.qual || "白";
+    if(QUALITY_ORDER[q] >= QUALITY_ORDER["藍"]){
+      say("已達合成上限。");
+      return;
     }
-    const next = QUALS[QUALITY_ORDER[q]+1];
 
-// 目前裝備的實際數值
-const base = { atk: inst.atk, def: inst.def, hp: inst.hp, mp: inst.mp };
+    const p = game.player;
+    let cnt = 0;
+    const keys = [];
+    const equipSlots = [];
 
-// 品質倍率表
-const invMul = [1, 1.05, 1.1, 1.15, 1.2, 1.5];
-const curMul  = invMul[QUALITY_ORDER[q]];
-const nextMul = invMul[QUALITY_ORDER[next]];
+    // 1) 先數背包裡的同名同品質裝備
+    Object.entries(game.inv).forEach(([k, v])=>{
+      const eq = getEquipInstance(k);
+      if(eq && eq.name === inst.name && eq.qual === inst.qual){
+        cnt += v;
+        keys.push([k, v]);
+      }
+    });
 
-// 邏輯：先還原回「白品等價」→ 再套用下一階倍率（向上取整避免被吃掉）
-const baseWhite = {
-  atk: Math.max(0, Math.round(base.atk / curMul)),
-  def: Math.max(0, Math.round(base.def / curMul)),
-  hp : Math.max(0, Math.round(base.hp  / curMul)),
-  mp : Math.max(0, Math.round(base.mp  / curMul)),
-};
+    // 2) 再把身上穿的同名同品質裝備也一起算進來
+    ["weapon","armor","acc"].forEach(slot=>{
+      const eid = p.equip[slot];
+      if(!eid) return;
+      const eq = getEquipInstance(eid);
+      if(eq && eq.name === inst.name && eq.qual === inst.qual){
+        cnt += 1;
+        equipSlots.push(slot);
+      }
+    });
 
-// 產生新數值：向上取整；若原屬性>0且新值沒有比舊值大，保底+1
-function grow(oldVal, whiteVal){
-  if (whiteVal <= 0) return 0;
-  const scaled = Math.ceil(whiteVal * nextMul);
-  return Math.max(scaled, oldVal + 1);  // 保底至少+1
-}
+    if(cnt < need){
+      say(`需要同名同品質裝備 ${need} 件（目前 ${cnt}）`);
+      return;
+    }
 
-const newStats = {
-  atk: grow(base.atk, baseWhite.atk),
-  def: grow(base.def, baseWhite.def),
-  hp : grow(base.hp,  baseWhite.hp),
-  mp : grow(base.mp,  baseWhite.mp),
-};
+    // 3) 先從背包扣除素材
+    let left = need;
+    for(const [k, v] of keys){
+      if(left <= 0) break;
+      const take = Math.min(v, left);
+      decInv(k, take);
+      left -= take;
+    }
 
-const newId = makeEquipInstance(inst.name, next, inst.slot, inst.weapon || null, newStats);
-addInv(newId, 1);
-say(`⚗️ 合成成功！獲得 ${fmtQual(next,qualName(inst.name,next))}（ATK ${base.atk}→${newStats.atk}｜DEF ${base.def}→${newStats.def}｜HP ${base.hp}→${newStats.hp}｜MP ${base.mp}→${newStats.mp}）`);
+    // 4) 不夠的話，再從身上裝備扣除（會直接拆掉裝備，並重新計算能力值）
+    if(left > 0){
+      for(const slot of equipSlots){
+        if(left <= 0) break;
+        const eid = p.equip[slot];
+        if(!eid) continue;
 
-    say(`⚗️ 合成成功！獲得 ${fmtQual(next,qualName(inst.name,next))}。`);
-    renderInventoryList(); render();
+        // 解除裝備：從能力值扣回去，並清空該槽位
+        applyEquipMod(eid, -1);
+        p.equip[slot] = null;
+        left -= 1;
+        say(`你消耗了身上裝備 <b>${displayEquipName(eid)}</b> 作為合成素材。`);
+      }
+    }
+
+    // 5) 計算下一品質的實際屬性
+    const next = QUALS[QUALITY_ORDER[q] + 1];
+
+    const base = {
+      atk: inst.atk || 0,
+      def: inst.def || 0,
+      hp : inst.hp  || 0,
+      mp : inst.mp  || 0,
+    };
+
+    // 品質倍率表（照你原本的設定）
+    const invMul = [1, 1.05, 1.1, 1.15, 1.2, 1.5];
+    const curMul  = invMul[QUALITY_ORDER[q]];
+    const nextMul = invMul[QUALITY_ORDER[next]];
+
+    // 邏輯：先還原回「白品等價」→ 再套用下一階倍率（向上取整避免被吃掉）
+    const baseWhite = {
+      atk: Math.max(0, Math.round(base.atk / curMul)),
+      def: Math.max(0, Math.round(base.def / curMul)),
+      hp : Math.max(0, Math.round(base.hp  / curMul)),
+      mp : Math.max(0, Math.round(base.mp  / curMul)),
+    };
+
+    // 產生新數值：向上取整；若原屬性>0且新值沒有比舊值大，保底+1
+    function grow(oldVal, whiteVal){
+      if(whiteVal <= 0) return 0;
+      const scaled = Math.ceil(whiteVal * nextMul);
+      return Math.max(scaled, oldVal + 1);
+    }
+
+    const newStats = {
+      atk: grow(base.atk, baseWhite.atk),
+      def: grow(base.def, baseWhite.def),
+      hp : grow(base.hp,  baseWhite.hp),
+      mp : grow(base.mp,  baseWhite.mp),
+    };
+
+    const newId = makeEquipInstance(inst.name, next, inst.slot, inst.weapon || null, newStats);
+    addInv(newId, 1);
+
+    say(
+      `⚗️ 合成成功！獲得 ${fmtQual(next,qualName(inst.name,next))}` +
+      `（ATK ${base.atk}→${newStats.atk}｜DEF ${base.def}→${newStats.def}` +
+      `｜HP ${base.hp}→${newStats.hp}｜MP ${base.mp}→${newStats.mp}）`
+    );
+
+    // 重新計算一次角色能力（避免因為拆裝而沒更新）
+    recomputeStats(false);
+    renderInventoryList();
+    render();
   }
 
   // 強化
-  let enhTargetId=null;
-  const enhDlg=$("#enhDlg"), enhInfo=$("#enhInfo"), enhBtnDo=$("#enhBtnDo");
+  let enhTargetId = null;
+  const enhDlg = $("#enhDlg"),
+        enhInfo = $("#enhInfo"),
+        enhBtnDo = $("#enhBtnDo"),
+        enhBtnCombine = $("#enhBtnCombine");
+
   $("#slot-weapon").onclick = ()=>openEnhForSlot("weapon");
-  $("#slot-armor").onclick = ()=>openEnhForSlot("armor");
-  $("#slot-acc").onclick   = ()=>openEnhForSlot("acc");
+  $("#slot-armor").onclick  = ()=>openEnhForSlot("armor");
+  $("#slot-acc").onclick    = ()=>openEnhForSlot("acc");
+
   function openEnhForSlot(slot){
     const id=game.player.equip[slot];
     if(!id){ say("此槽位尚未裝備。"); return; }
@@ -2831,31 +2965,75 @@ function openMountPanel(){
 closeMount.onclick = ()=> mountDlg.close();
 //坐騎裝備欄開窗
   
-  function renderEnhancePanel(){
-    enhInfo.innerHTML="";
-    const inst=getEquipInstance(enhTargetId); if(!inst){ enhInfo.innerHTML="<div class='row'>找不到裝備。</div>"; return; }
-    const canEnh = QUALITY_ORDER[inst.qual]>=QUALITY_ORDER["藍"];
-    const chance = enhChance(inst);
-    const cost = enhCost(inst);
-    const line = document.createElement("div"); line.className="row";
-line.innerHTML = `<div>
-${displayEquipName(enhTargetId)}｜${qualWithStars(inst)}｜
-  ATK ${inst.atk} DEF ${inst.def} HP ${inst.hp} MP ${inst.mp}
-  <br><span class="tag affix">${affixShort(inst)}</span>
-  <br><span class="tag">強化成功率：${Math.round(chance*100)}%｜費用：${cost} G</span>
-</div>`;
+function renderEnhancePanel(){
+  enhInfo.innerHTML = "";
 
+  const inst = getEquipInstance(enhTargetId);
+  if(!inst){
+    enhInfo.innerHTML = "<div class='row'>找不到裝備。</div>";
+    if(enhBtnDo) enhBtnDo.disabled = true;
+    if(enhBtnCombine) enhBtnCombine.disabled = true;
+    return;
+  }
 
-    enhInfo.appendChild(line);
-    if(inst.name && inst.name.startsWith("[神器_")){
-  const tip=document.createElement("div");
-  tip.className="hint";
-  tip.innerHTML="（神器強化：每+1 ATK+25 DEF+15 HP+80 MP+50；成功率可被「ㄅㄅㄐ之錘」加成）";
-  enhInfo.appendChild(tip);
+  const q = inst.qual || "白";
+  const canEnh = QUALITY_ORDER[q] >= QUALITY_ORDER["藍"];
+  const chance = enhChance(inst);
+  const cost   = enhCost(inst);
+
+  const line = document.createElement("div");
+  line.className = "row";
+  line.innerHTML = `<div>
+    ${displayEquipName(enhTargetId)}｜${qualWithStars(inst)}｜
+    ATK ${inst.atk} DEF ${inst.def} HP ${inst.hp} MP ${inst.mp}
+    <br><span class="tag affix">${affixShort(inst)}</span>
+    <br><span class="tag">強化成功率：${Math.round(chance*100)}%｜費用：${cost} G</span>
+  </div>`;
+
+  enhInfo.appendChild(line);
+
+  if(inst.name && inst.name.startsWith("[神器_")){
+    const tip = document.createElement("div");
+    tip.className = "hint";
+    tip.innerHTML = "（神器強化：每+1 ATK+25 DEF+15 HP+80 MP+50；成功率可被「ㄅㄅㄐ之錘」加成）";
+    enhInfo.appendChild(tip);
+  }
+
+  // 強化按鈕：只有藍品以上可以強化
+  if(enhBtnDo) enhBtnDo.disabled = !canEnh;
+
+  // 合成按鈕：白 / 綠 才可以，且需要至少 3 件（含身上）
+  if(enhBtnCombine){
+    let canCombine = QUALITY_ORDER[q] < QUALITY_ORDER["藍"];
+
+    if(canCombine){
+      let cnt = 0;
+
+      // 背包
+      Object.entries(game.inv).forEach(([k,v])=>{
+        const eq = getEquipInstance(k);
+        if(eq && eq.name === inst.name && eq.qual === inst.qual){
+          cnt += v;
+        }
+      });
+
+      // 身上
+      ["weapon","armor","acc"].forEach(slot=>{
+        const eid = game.player.equip[slot];
+        if(!eid) return;
+        const eq = getEquipInstance(eid);
+        if(eq && eq.name === inst.name && eq.qual === inst.qual){
+          cnt += 1;
+        }
+      });
+
+      canCombine = cnt >= 3;
+    }
+
+    enhBtnCombine.disabled = !canCombine;
+  }
 }
 
-    enhBtnDo.disabled=!canEnh;
-  }
 
   // 成功率表（藍 / 黃 / 橘）
 function enhChance(inst){
@@ -3034,7 +3212,23 @@ if(inst.qual && inst.qual.startsWith("神器")){
   autosave();
 };
 
+  if(enhBtnCombine){
+  enhBtnCombine.onclick = ()=>{
+    if(!enhTargetId) return;
+    const inst = getEquipInstance(enhTargetId);
+    if(!inst) return;
 
+    const q = inst.qual || "白";
+    // 藍以上就不允許用「合成」了，只能強化
+    if(QUALITY_ORDER[q] >= QUALITY_ORDER["藍"]){
+      say("已達合成上限（藍品以上請用強化）。");
+      return;
+    }
+
+    const need = 3;              // 需要 3 件
+    combineEquip(enhTargetId, need);
+  };
+}
 
   // 詞條追加
   function addRandomAffix(inst){
@@ -3948,6 +4142,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
