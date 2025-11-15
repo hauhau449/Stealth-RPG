@@ -1842,16 +1842,36 @@ function displayEquipName(id){
     // 中毒DOT在回合終結時生效
     enemyTurn();
   }
-  function useActiveSkill(){
-    if(!game.state.inBattle) return say("不在戰鬥中。");
-    const id=game.player.activeSkill, sk=SKILL[id]; if(!sk || sk.type==="被動") return say("沒有可施放的主動技能。");
-    const lv=game.player.learned[id]||1;
-    const ok = sk.use(game.player,game.state.enemy,lv);
-    render();
-    if(!ok) return;
-    if(game.state.enemy.hp<=0) return endBattle(true);
-    enemyTurn();
+ function useActiveSkill(){
+  // 不在戰鬥中 → 不算施放
+  if(!game.state.inBattle){
+    say("不在戰鬥中。");
+    return false;
   }
+
+  const id = game.player.activeSkill;
+  const sk = SKILL[id];
+  if(!sk || sk.type === "被動"){
+    say("沒有可施放的主動技能。");
+    return false;
+  }
+
+  const lv = game.player.learned[id] || 1;
+  const ok = sk.use(game.player, game.state.enemy, lv);
+  render();
+
+  // 技能本身回傳 false（多半是 MP 不足）→ 視為施放失敗
+  if(!ok) return false;
+
+  if(game.state.enemy.hp <= 0){
+    endBattle(true);
+    return true;
+  }
+
+  enemyTurn();
+  return true;
+}
+
   function enemyTurn(){
     const p=game.player, e=game.state.enemy;
       // ✅ 沒敵人就結束（避免 e.dot 取值報錯）
@@ -3602,7 +3622,7 @@ function refreshQuestsIfAllRewarded(){
       say("🛑 掛機已關閉。");
     }
   }
-  // [FIX] 掛機主迴圈：不在戰鬥時要主動探索；在戰鬥時才打與判定
+// [FIX] 掛機主迴圈：不在戰鬥時要主動探索；在戰鬥時才打與判定
 function afkTick(){
   const st = game.state;
 
@@ -3627,12 +3647,17 @@ function afkTick(){
     return;
   }
 
-  // ✅ 自動用藥（支援小/中/大/特級）與回魔
+   // ✅ 自動用藥（支援小/中/大/特級）與回魔
   if( autoUseHeal() ) return;
   if( autoUseMana() ) return;
 
-  // ✅ 自動釋放主動技能（沿用你原本的技能邏輯）
-  useActiveSkill();
+  // ✅ 自動釋放主動技能：失敗時改用普通攻擊
+  const usedSkill = useActiveSkill();   // 會回傳 true / false
+
+  if(!usedSkill){
+    // MP 不足 / 沒有技能可用 → 用普通攻擊頂上，避免掛機卡死
+    playerAttack();
+  }
 
   // ✅ 勝負判定
   if(st.enemy && st.enemy.hp <= 0){
@@ -3640,8 +3665,8 @@ function afkTick(){
     return;
   }
 
-
 }
+
 
 
   
@@ -3900,6 +3925,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
