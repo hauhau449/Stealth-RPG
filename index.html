@@ -1085,7 +1085,7 @@ const XP_SCROLL_RATE = 2.0;
     const g = rnd(100,2000);           // 隨機 100~2000
     game.player.gold += g;             // 加到玩家金幣
     decInv("錢袋",1);                  // 背包扣一個錢袋
-    say(`💰 你打開了 <b>錢袋</b>，獲得 <b>${g}</b> G！`);
+    say(`💰 你打開了 <b>錢袋</b>，從 <b>100～2000</b> G 中抽中 <b>${g}</b> G！`);
     render();
     autosave();
   }
@@ -3191,6 +3191,25 @@ function sellPrice(name){
     return QUEST_DB.find(d=>d.id === id);
   }
 
+  // 將任務獎勵物件轉成可閱讀字串
+  function formatQuestReward(r){
+    if(!r) return "無";
+    const parts = [];
+    if(r.exp)  parts.push(`EXP ${r.exp}`);
+    if(r.gold) parts.push(`${r.gold} G`);
+    if(r.item){
+      const c = r.itemCount || 1;
+      parts.push(`${r.item} ×${c}`);
+    }
+    if(r.items){
+      for(const [name,c] of Object.entries(r.items)){
+        parts.push(`${name} ×${c}`);
+      }
+    }
+    return parts.join("、");
+  }
+
+  
   function renderQuestList(){
     const box = $("#questList");
     box.innerHTML = "";
@@ -3219,11 +3238,12 @@ function sellPrice(name){
       const needSubmitBtn = (q.state === "active") &&
         (q.req?.submitItems || q.req?.submitEquip);
 
-      row.innerHTML = `
+            row.innerHTML = `
         <div>
           <b>${q.name}</b> <span class="tag">${st}</span><br>
           <span class="muted">${q.desc}</span><br>
           <span class="tag">${formatQuestProgress(q)}</span><br>
+          <span class="tag">獎勵：${formatQuestReward(q.reward)}</span><br>
           ${q.state === "available"
             ? `<button class="btn tiny" data-act="accept" data-qid="${q.id}">接受</button>`
             : ""}
@@ -3235,6 +3255,7 @@ function sellPrice(name){
             : ""}
         </div>
       `;
+
 
       row.onclick = (ev)=>{
         const btn = ev.target.closest("button[data-act]");
@@ -3340,28 +3361,29 @@ function sellPrice(name){
     }
   }
 
-  function claimQuestReward(q){
-  if(q.state !== "done") return;
+ function claimQuestReward(q){
+    if(q.state !== "done") return;
 
-  // 先發獎勵，標記為已領取
-  grantReward(q.reward);
-  q.state = "rewarded";
-  say(`🎉 任務完成：<b>${q.name}</b>！`);
+    // 發放獎勵
+    grantReward(q.reward);
+    q.state = "rewarded";
 
-  // 🔁 檢查是不是「所有任務都已領獎」
-  if(Array.isArray(game.quests) && game.quests.length > 0){
-    const allDone = game.quests.every(qq => qq.state === "rewarded");
-    if(allDone){
-      say("📜 所有任務已完成，已刷新新一輪任務！");
-      // 重新依照目前等級，抓一輪新的任務
-      seedQuests();
-      // 重新畫任務列表（如果任務視窗有開著會馬上更新）
-      renderQuestList();
-      // 存檔
-      autosave();
+    // 顯示這次任務的獎勵內容
+    const text = formatQuestReward(q.reward);
+    say(`🎉 任務完成：<b>${q.name}</b>！獲得獎勵：<b>${text}</b>`);
+
+    // 🌟 如果所有任務都已領獎，刷新新一輪任務
+    if(Array.isArray(game.quests) && game.quests.length > 0){
+      const allDone = game.quests.every(qq => qq.state === "rewarded");
+      if(allDone){
+        say("📜 所有任務已完成，已刷新新一輪任務！");
+        seedQuests();
+        renderQuestList();
+        autosave();
+      }
     }
   }
-}
+
 
 
   // 擊殺任意怪物的進度更新
@@ -3797,6 +3819,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
