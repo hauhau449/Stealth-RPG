@@ -1161,13 +1161,52 @@ const MOUNTS={
       {item:"技能書：猛擊",rate:0.04},
     ];
 
-       // 基本藥水掉落
+     function baseDropsForLevel(lvl,tag){
+  const base = [
+    {item:"技能書：活力",rate:0.06},
+    {item:"技能書：專注",rate:0.05},
+    {item:"技能書：火球術",rate:0.04},
+    {item:"技能書：連擊",rate:0.04},
+    {item:"技能書：猛擊",rate:0.04},
+  ];
+
+  // 🔻 基本藥水依等級分配（最高到「高級」）
+  if(lvl <= 30){
+    // 新手區：小藥水
     base.push(
       {item:"小治療藥水",rate:0.14},
-      {item:"小魔力藥水",rate:0.12},
-      // 任務藥水：實際掉不掉會在 handleDrops() 再判斷
-      {item:"任務藥水", rate:0.12}
+      {item:"小魔力藥水",rate:0.12}
     );
+  } else if(lvl <= 60){
+    // 中期：中藥水
+    base.push(
+      {item:"中治療藥水",rate:0.14},
+      {item:"中魔力藥水",rate:0.12}
+    );
+  } else if(lvl <= 90){
+    // 後期：大藥水
+    base.push(
+      {item:"大治療藥水",rate:0.14},
+      {item:"大魔力藥水",rate:0.12}
+    );
+  } else {
+    // 高等地圖：高級藥水（最高掉到這一階）
+    base.push(
+      {item:"高級治療藥水",rate:0.14},
+      {item:"高級魔力藥水",rate:0.12}
+    );
+  }
+
+  // 任務藥水：掉落表先寫進去，實際掉不掉交給 handleDrops() 判斷有沒有任務
+  base.push(
+    {item:"任務藥水", rate:0.12}
+  );
+
+  // ...後面你原本 base 其他掉落邏輯照舊...
+
+  return base;
+}
+;
 
 
     // 低等區域白裝掉落（1~30 等）
@@ -3925,6 +3964,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
