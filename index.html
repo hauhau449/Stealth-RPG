@@ -1124,7 +1124,7 @@ const MOUNTS={
   ];
 
    // 💰 全局金幣倍率：1 = 原本數字，4 = 四倍金幣
-  const GOLD_RATE = 2;
+  const GOLD_RATE = 10;
   const CLASS_REQ=[10,30,70,120];
   const zones = buildZones();
 
@@ -1424,7 +1424,7 @@ function qualWithStars(inst){
       type:"submitEquip",
       minLvl:30,
       name:"精良裝備整理：交出 2 件藍裝",
-      desc:"整理多餘的藍裝，協助工坊研究神器。",
+      desc:"整理多餘的藍裝，讓鐵匠鋪回收再利用。",
       req:{ submitEquip:{ blue:2 } },
       reward:{ exp:800, gold:800, item:"錢袋", itemCount:2 }
     }
@@ -3703,6 +3703,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
