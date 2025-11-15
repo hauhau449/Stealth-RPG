@@ -2899,6 +2899,7 @@ function addEquip(inst){
     recomputeStats(false);
     renderInventoryList();
     render();
+    return newId;   // ⬅ 只加這一行
   }
 
   // 強化
@@ -3225,10 +3226,20 @@ if(inst.qual && inst.qual.startsWith("神器")){
       return;
     }
 
-    const need = 3;              // 需要 3 件
-    combineEquip(enhTargetId, need);
+    const need = 3;              
+    // 1) 先合成，拿到新裝備 id
+    const newId = combineEquip(enhTargetId, need);
+    if(!newId) return; // 合成失敗就不動
+
+    // 2) 自動穿上新裝備（用你原本的 equipItem 邏輯）
+    equipItem(newId);
+
+    // 3) 更新強化目標，讓面板顯示新裝備
+    enhTargetId = newId;
+    renderEnhancePanel();
   };
 }
+
 
   // 詞條追加
   function addRandomAffix(inst){
@@ -4142,6 +4153,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
