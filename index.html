@@ -2226,14 +2226,35 @@ if(next && (game.inv[name]||0) >= 2){
     if(ref){ return {type: ref.type, ref:key}; }
     return {type:"misc"};
   }
-  function useItem(key){
-    const p=game.player, meta=invMeta(key);
-    if(meta.type!=="consum") return;
-    const def=itemDefs[meta.ref]; if(!def) return;
-    def.use(p, game.state.enemy, game.state.inBattle);
-    decInv(key,1); render();
-    if(game.state.inBattle) enemyTurn();
+ function useItem(key){
+  const p = game.player;
+  const meta = invMeta(key);
+  if (meta.type !== "consum") return;
+
+  const def = itemDefs[meta.ref];
+  if (!def) return;
+
+  // 先執行道具本身的效果
+  def.use(p, game.state.enemy, game.state.inBattle);
+
+  // 🧩 特例：
+  // 1) 神器碎片（名稱裡包含「神器碎片」）
+  // 2) ㄅㄅㄐ之錘（在 use 裡自己 decInv）
+  // 3) 錢袋（在 use 裡自己 decInv）
+  // 這三種道具在自己的 use() 裡已經處理數量，不要再自動扣 1 次
+  if (
+    !meta.ref.includes("神器碎片") &&
+    meta.ref !== "ㄅㄅㄐ之錘" &&
+    meta.ref !== "錢袋"
+  ) {
+    decInv(key, 1);
   }
+
+  render();
+  if (game.state.inBattle) enemyTurn();
+}
+
+
   function combinePotion(name){
   const next = nextPotionName(name);
   if(!next) return say("此物品不可再合成。");
@@ -3703,6 +3724,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
