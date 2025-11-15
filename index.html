@@ -486,10 +486,18 @@ dialog{
     ・支援手機介面遊玩。<br>
     ・背包預覽處可點擊使用。<br>
     ・地圖重新調整。<br>
-    ・神器系統、碎片待修正。<br>
     ・坐騎強度待調整。<br>
     ・怪物強度待調整。<br>
     ・任務系統待調整。<br>
+  </div>
+</div>
+   <!-- ⬇⬇⬇ 11/15更新如下 ⬇⬇⬇ -->
+   <div class="log-entry">
+  <div class="log-date">2025/11/15</div>
+  <div class="log-content">
+    ・神器系統上線。<br>
+    ・修復[ㄅㄅㄐ之槌]誤植永久加成。<br>
+    ・修復掛機怪物連動2次問題。<br>
   </div>
 </div>
   <!-- ⬇⬇⬇ 11/14更新如下 ⬇⬇⬇ -->
@@ -1054,7 +1062,7 @@ const XP_SCROLL_RATE = 2.0;
     "技能書：破甲斬":{type:"book", skill:"armorbreak"},
     "技能書：猛擊":{type:"book", skill:"armorbreak"},
     "秘傳：萬斬":{type:"book", skill:"omnislash"},
-    "ㄅㄅㄐ之錘":{type:"consum",desc:"神器強化成功率永久+1%（可疊加）。",use:(p)=>{if(!game.buffs) game.buffs={xpLayers:[],artiHammer:0};game.buffs.artiHammer = (game.buffs.artiHammer||0) + 1;
+    "ㄅㄅㄐ之錘":{type:"consum",desc:"本次神器強化每顆 +1% 成功率（可疊加，強化後歸零）。",use:(p)=>{if(!game.buffs) game.buffs={xpLayers:[],artiHammer:0};game.buffs.artiHammer = (game.buffs.artiHammer||0) + 1;
     decInv("ㄅㄅㄐ之錘",1);
     say(`🔧 你使用了 ㄅㄅㄐ之錘，神器強化成功率加成：+${game.buffs.artiHammer}%`);
   }
@@ -2637,48 +2645,53 @@ enhBtnDo.onclick=()=>{
     return;
   }
 
-  // 🔴 神器規則另外處理（qual 以「神器」開頭的都算）
-  if(inst.qual && inst.qual.startsWith("神器")){
-    const p = inst.plus || 0;
-    const s = inst.stars || 0;
-    const rate = ENH_RATE.神器(p, s);
+// 神器規則另外處理
+if(inst.qual && inst.qual.startsWith("神器")){
+  const p = inst.plus || 0;
+  const s = inst.stars || 0;
+  const rate = ENH_RATE.神器(p, s);
 
-    game.player.gold -= cost;
+  game.player.gold -= cost;
 
-    if(Math.random() < rate){
-      // 成功：+1 並加屬性
-      inst.plus = p + 1;
-      const d = PLUS_DELTA.神器;
-      if(d){
-        inst.atk += d.atk;
-        inst.def += d.def;
-        inst.hp  += d.hp;
-        inst.mp  += d.mp;
-      }
-
-      if(inst.plus >= 10){
-        inst.stars = Math.min(5, s + 1);
-        inst.plus  = 0;
-        say(`🟥 神器升星成功 → ${inst.stars}☆！`);
-      }else{
-        say(`🟥 神器強化成功：+${inst.plus}`);
-      }
-    }else{
-      const fb = FAIL_BEHAVIOR.神器(s);
-      if(Math.random() < fb.rate){
-        inst.plus = Math.max(0, p - 1);
-        say(`❌ 神器強化失敗，降為 +${inst.plus}`);
-      }else{
-        say("❌ 神器強化失敗（保級）。");
-      }
+  if(Math.random() < rate){
+    // 成功：+1 並加屬性
+    inst.plus = p + 1;
+    const d = PLUS_DELTA.神器;
+    if(d){
+      inst.atk += d.atk;
+      inst.def += d.def;
+      inst.hp  += d.hp;
+      inst.mp  += d.mp;
     }
 
-    recomputeStats(false);
-    renderEnhancePanel();
-    render();
-    autosave();
-    return;
+    if(inst.plus >= 10){
+      inst.stars = Math.min(5, s + 1);
+      inst.plus  = 0;
+      say(`🟥 神器升星成功 → ${inst.stars}☆！`);
+    }else{
+      say(`🟥 神器強化成功：+${inst.plus}`);
+    }
+  }else{
+    const fb = FAIL_BEHAVIOR.神器(s);
+    if(Math.random() < fb.rate){
+      inst.plus = Math.max(0, p - 1);
+      say(`❌ 神器強化失敗，降為 +${inst.plus}`);
+    }else{
+      say("❌ 神器強化失敗（保級）。");
+    }
   }
+
+  // 🔻 不論成功 / 失敗，都把 ㄅㄅㄐ  buff 清掉
+  if(!game.buffs) game.buffs = {xpLayers:[], artiHammer:0};
+  game.buffs.artiHammer = 0;
+
+  recomputeStats(false);
+  renderEnhancePanel();
+  render();
+  autosave();
+  return;
+}
+
 
   // 🟦 其他品質：只能強化 藍 / 黃 / 橘 / 紫
   if(!["藍","黃","橘","紫"].includes(inst.qual)){
@@ -3122,8 +3135,7 @@ function afkTick(){
     return;
   }
 
-  // ✅ 敵方回合
-  enemyTurn();
+
 }
 
 
@@ -3375,6 +3387,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
