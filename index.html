@@ -2062,6 +2062,52 @@ const id = makeEquipInstance(innerName,"神器",def.slot,def.weapon||null,def.ba
   }
   return id;
 }
+// ✅ 確保某個 Boss 的神器碎片已經在 itemDefs 裡註冊成可使用道具
+function ensureArtifactFragmentDef(bossName){
+  const cfg = BOSS_ARTIFACT_DATA[bossName];
+  if(!cfg) return;
+
+  const fragName = cfg.fragmentName;
+
+  // 已經有定義就不用重複
+  if(itemDefs[fragName]) return;
+
+  itemDefs[fragName] = {
+    type:"consum",
+    desc:`${bossName} 專屬神器碎片。收集 5 片可隨機合成一件 ${bossName} 的神器裝備。`,
+    use:(p)=>{
+      // 目前碎片數量
+      const have = game.inv[fragName] || 0;
+
+      // 不足 5 片 → 只提示，不扣數量
+      if(have < 5){
+        say(`🧩 ${fragName}：目前 <b>${have}</b>/5，尚不足以合成神器。`);
+        return;
+      }
+
+      // 足夠才扣 5 片
+      game.inv[fragName] = have - 5;
+      if(game.inv[fragName] <= 0) delete game.inv[fragName];
+
+      // 開始合成神器
+      const id = createBossArtifact(bossName);
+      if(!id){
+        say("❌ 合成失敗：神器資料表有問題，請回報作者。");
+        return;
+      }
+      const inst = getEquipInstance(id);
+      addInv(id,1);
+      say(`🟥 合成完成：<b>${inst?.name||"未知神器"}</b>！`);
+      render();
+    }
+  };
+}
+// ✅ 遊戲啟動時呼叫：把所有 Boss 的碎片道具都先註冊好
+function initAllArtifactFragments(){
+  Object.keys(BOSS_ARTIFACT_DATA).forEach(name=>{
+    ensureArtifactFragmentDef(name);
+  });
+}
 
 // 掉落一片 Boss 神器碎片（並確保道具定義存在）
 function dropArtifactFragmentFromBoss(bossName){
@@ -2070,44 +2116,14 @@ function dropArtifactFragmentFromBoss(bossName){
 
   const fragName = cfg.fragmentName;
 
-  // 定義碎片道具（只會定義一次）
-  if(!itemDefs[fragName]){
-    itemDefs[fragName] = {
-      type:"consum",
-      desc:`${bossName} 專屬神器碎片。收集 5 片可隨機合成一件 ${bossName} 的神器裝備。`,
-       use:(p)=>{
-    // ✅ 讀取當前數量
-    const have = game.inv[fragName] || 0;
-
-    // ✅ 不足 5 片：只顯示提示，不做任何扣除
-    if(have < 5){
-      say(`🧩 ${fragName}：目前 <b>${have}</b>/5，尚不足以合成神器。`);
-      return;
-    }
-
-    // ✅ 真的足夠才扣數量
-    game.inv[fragName] = have - 5;
-    if(game.inv[fragName] <= 0) delete game.inv[fragName];
-
-    // ✅ 開始合成
-    const id = createBossArtifact(bossName);
-    if(!id){
-      say("❌ 合成失敗：神器資料表有問題，請回報作者。");
-      return;
-    }
-    const inst = getEquipInstance(id);
-    addInv(id,1);
-    say(`🟥 合成完成：<b>${inst?.name||"未知神器"}</b>！`);
-    render();
-  }
-
-    };
-  }
+  // 先確保碎片道具有定義（只會做一次）
+  ensureArtifactFragmentDef(bossName);
 
   // 實際給碎片
   addInv(fragName,1);
   say(`🧩 你獲得神器碎片：<b>${fragName}</b>！`);
 }
+
 
 // 🔍 檢查：目前是否有「需要任務藥水」的進行中任務
 function hasActiveQuestNeedTaskPotion(){
@@ -3863,8 +3879,16 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 }
 
 
-  // 啟動
-  load(); renderFake(); ensureStock(); recomputeStats(true); if(game.quests.length===0) seedQuests(); intro(); render();
+    // 啟動
+  load();
+  initAllArtifactFragments();            // ⬅ 在這裡先註冊所有神器碎片道具
+  renderFake();
+  ensureStock();
+  recomputeStats(true);
+  if(game.quests.length===0) seedQuests();
+  intro();
+  render();
+
 
   // 開場介紹只在未勾選不再顯示時跳出
   try{ if(localStorage.getItem(INTRO_KEY)!=="1"){ openIntro(false); } }catch(e){ openIntro(false); }
@@ -3876,6 +3900,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
