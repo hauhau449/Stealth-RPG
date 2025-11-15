@@ -3341,11 +3341,28 @@ function sellPrice(name){
   }
 
   function claimQuestReward(q){
-    if(q.state !== "done") return;
-    grantReward(q.reward);
-    q.state = "rewarded";
-    say(`🎉 任務完成：<b>${q.name}</b>！`);
+  if(q.state !== "done") return;
+
+  // 先發獎勵，標記為已領取
+  grantReward(q.reward);
+  q.state = "rewarded";
+  say(`🎉 任務完成：<b>${q.name}</b>！`);
+
+  // 🔁 檢查是不是「所有任務都已領獎」
+  if(Array.isArray(game.quests) && game.quests.length > 0){
+    const allDone = game.quests.every(qq => qq.state === "rewarded");
+    if(allDone){
+      say("📜 所有任務已完成，已刷新新一輪任務！");
+      // 重新依照目前等級，抓一輪新的任務
+      seedQuests();
+      // 重新畫任務列表（如果任務視窗有開著會馬上更新）
+      renderQuestList();
+      // 存檔
+      autosave();
+    }
   }
+}
+
 
   // 擊殺任意怪物的進度更新
   function updateQuestProgressOnKill(name){
@@ -3780,6 +3797,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
