@@ -19,6 +19,16 @@
   .wrap{max-width:1180px;margin:0 auto;padding:12px}
   .topbar{display:flex;gap:8px;align-items:center;justify-content:space-between}
   .title{font-weight:700;letter-spacing:.3px;color:var(--muted)}
+ 
+  .more-menu{                        /* 更多功能下拉選單（手機用） */
+    display:none;                 /* 先隱藏，之後在手機版打開 */
+    border:1px solid #0003;
+    background:var(--btn);
+    color:var(--fg);
+    border-radius:8px;
+    padding:4px 6px;
+    font-size:12px;
+  }
   .btn{border:1px solid #0003;background:var(--btn);color:var(--fg);padding:8px 10px;border-radius:10px;cursor:pointer}
   .btn:hover{background:var(--btnh)} .btn.small{padding:4px 8px;font-size:12px;border-radius:8px}
   .grid{display:grid;grid-template-columns:1.4fr .8fr;gap:12px;margin-top:10px}
@@ -234,29 +244,158 @@ dialog{
 
 /* 星數 */
 .star{ font-weight:700; margin-left:2px; }
+/* ✅ 手機／窄螢幕排版：盡量一個畫面就能玩 */
+@media (max-width: 768px){
+  /* 手機版主畫面：改成一欄直排，右邊面板移到下面 */
+  .grid{
+    grid-template-columns:1fr;   /* ✅ 原本 1.4fr + 0.8fr → 改成 1 欄 */
+    gap:4px;
+    margin-top:4px;
+  }
+
+  /* 整體字體與寬度微調 */
+  body{
+    font-size:14px;
+  }
+  .wrap{
+    max-width:420px;
+    margin:0 auto;
+    padding:6px;
+  }
+
+  /* 按鈕略縮小一點 */
+  .btn{
+    padding:6px 8px;
+    font-size:13px;
+  }
+  .btn.small{
+    padding:5px 6px;
+    font-size:10px;
+  }
+
+  /* 冒險日誌高度壓低，留空間給右邊狀態＋裝備 */
+  .log{
+    height:15vh;
+    font-size:12px;
+  }
+
+  /* 探索／戰鬥按鈕兩欄排，省高度 */
+  .actions{
+    gap:4px;
+    margin-top:6px;
+  }
+  .actions .btn{
+    flex:1 1 calc(10% - 50px);
+    text-align:center;
+    padding:5px 3px;
+    font-size:10px;
+  }
+
+  /* 熱鍵提示在手機隱藏 */
+  .hint{
+    display:none;
+  }
+
+  /* 狀態面板：單欄排版，字再小一點 */
+  .stats{
+    grid-template-columns:1fr;
+    gap:4px;
+    margin-top:4px;
+  }
+  .stat{
+    padding:1px 5px;
+    font-size:12px;
+  }
+
+  /* 背包預覽：高度限制成小區塊，多的用捲動 */
+  .inv{
+    max-height:120px;
+    overflow:auto;
+  }
+
+  /* 敵人資訊：單欄 + HP 條加長 + 整塊高度縮小 */
+  .enemy{
+    grid-template-columns:1fr;  /* 一欄，HP 條吃滿寬度 */
+    gap:5px;
+  }
+  .enemy .stat{
+    padding:2px 5px;
+  }
+  .bar{
+    height:8px;
+  }
+
+  /* 手機只顯示 名稱／攻擊／HP，其餘隱藏 */
+  .enemy-extra{
+    display:none;
+  }
+
+  /* 裝備欄：3 欄，看起來像
+     武器｜防具｜飾品
+     匕首｜皮甲｜幸運戒指 */
+  .equip{
+    grid-template-columns:repeat(2,1fr);
+    gap:4px;
+  }
+  .slot{
+    min-height:1px;
+    padding:6px 4px;
+  }
+  .slot b{
+    margin-bottom:2px;
+    font-size:14px;
+  }
+
+  /* 次要按鈕在手機隱藏，用下拉取代 */
+  .secondary-btn{
+    display:none;
+  }
+  .more-menu{
+    display:inline-block;
+    margin-left:4px;
+  }
+}
+
+
 
 
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="topbar">
+   <div class="topbar">
     <div class="title">Stealth RPG KPI — Full Build</div>
     <div class="row">
-      <button class="btn small" id="mapBtn">🗺️ 地圖</button>
-      <button class="btn small" id="shopBtn">🛒 商店</button>
-      <button class="btn small" id="skillBookBtn">📚 技能庫</button>
-      <button class="btn small" id="questBtn">📜 任務</button>
-     <button class="btn small" id="classBtn" disabled>🏷️ 轉職</button>
-      <button class="btn small" id="rebirthBtn">♻️ 轉生</button>
-      <button class="btn small" id="afkBtn">🤖 掛機：關</button>
-      <button class="btn small" id="helpBtn">❓ 說明</button>
-      <button class="btn small" id="introBtn">🎬 介紹</button>
-      <button class="btn small" id="stealthBtn">🕶️ 偽裝 <span class="hint">(Esc)</span></button>
-      <button class="btn small" id="saveBtn">💾 存檔</button>
-      <button class="btn small" id="resetBtn">🗑️ 重開</button>
+      <!-- 常用按鈕：手機也直接顯示 -->
+      <button class="btn small primary-btn" id="mapBtn">🗺️ 地圖</button>
+      <button class="btn small primary-btn" id="shopBtn">🛒 商店</button>
+      <button class="btn small primary-btn" id="skillBookBtn">📚 技能庫</button>
+      <button class="btn small primary-btn" id="questBtn">📜 任務</button>
+      <button class="btn small primary-btn" id="classBtn" disabled>🏷️ 轉職</button>
+      <button class="btn small primary-btn" id="afkBtn">🤖 掛機：關</button>
+
+      <!-- 👇 更多功能：排在掛機右邊 -->
+      <select id="moreMenu" class="more-menu">
+        <option value="">更多功能…</option>
+        <option value="rebirthBtn">♻️ 轉生</option>
+        <option value="helpBtn">❓ 說明</option>
+        <option value="introBtn">🎬 介紹</option>
+        <option value="stealthBtn">🕶️ 偽裝</option>
+        <option value="saveBtn">💾 存檔</option>
+        <option value="resetBtn">🗑️ 重開</option>
+      </select>
+
+      <!-- 次要按鈕：桌機顯示，手機會縮到「更多功能…」裡 -->
+      <button class="btn small secondary-btn" id="rebirthBtn">♻️ 轉生</button>
+      <button class="btn small secondary-btn" id="helpBtn">❓ 說明</button>
+      <button class="btn small secondary-btn" id="introBtn">🎬 介紹</button>
+      <button class="btn small secondary-btn" id="stealthBtn">🕶️ 偽裝 <span class="hint">(Esc)</span></button>
+      <button class="btn small secondary-btn" id="saveBtn">💾 存檔</button>
+      <button class="btn small secondary-btn" id="resetBtn">🗑️ 重開</button>
     </div>
   </div>
+
+
 
   <div class="grid game">
     <div class="card">
@@ -282,21 +421,23 @@ dialog{
       <div class="stats" id="stats"></div>
       <div class="sep"></div>
 
-      <h3>敵人情報</h3>
+                 <h3>敵人情報</h3>
       <div id="enemyBox" class="enemy">
         <div class="stat">名稱：<span id="eName" class="lvl">—</span></div>
-        <div class="stat">等級：<span id="eLvl" class="lvl">—</span></div>
+        <div class="stat enemy-extra">等級：<span id="eLvl" class="lvl">—</span></div>
         <div class="stat">攻擊：<span id="eAtk" class="atk">—</span></div>
-        <div class="stat">防禦：<span id="eDef" class="def">—</span></div>
+        <div class="stat enemy-extra">防禦：<span id="eDef" class="def">—</span></div>
         <div class="stat">HP
           <div class="bar hp"><span id="eHpBar" style="width:0%"></span></div>
           <span id="eHpTxt" class="hp">0/0</span>
         </div>
-        <div class="stat">MP
+        <div class="stat enemy-extra">MP
           <div class="bar mp"><span id="eMpBar" style="width:0%"></span></div>
           <span id="eMpTxt" class="mp">0/0</span>
         </div>
       </div>
+
+
 
       <div class="sep"></div>
       <h3>裝備</h3>
@@ -670,10 +811,26 @@ dialog{
 }
 
 (function(){
-  const $=s=>document.querySelector(s), LKEY="stealth_rpg_full_v4";
+    const $=s=>document.querySelector(s), LKEY="stealth_rpg_full_v4";
   const log=$("#log"), statsBox=$("#stats"), invBox=$("#inv");
   const enemyUI={name:$("#eName"),lvl:$("#eLvl"),atk:$("#eAtk"),def:$("#eDef"),hpTxt:$("#eHpTxt"),mpTxt:$("#eMpTxt"),hpBar:$("#eHpBar"),mpBar:$("#eMpBar")};
+
+    // 「更多功能…」：選項選到後，幫忙觸發對應按鈕
+  const moreMenu = $("#moreMenu");
+  if(moreMenu){
+    moreMenu.addEventListener("change", e=>{
+      const id = e.target.value;
+      if(id){
+        const btn = document.getElementById(id);
+        if(btn) btn.click();
+        e.target.value = ""; // 用完清空，方便下次選
+      }
+    });
+  }
+
+
   const NOW=()=>Date.now();
+
 
   /* ========= 常數與資料 ========= */
   const REBIRTH_LVL = 200;
