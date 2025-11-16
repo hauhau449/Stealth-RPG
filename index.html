@@ -2809,13 +2809,10 @@ const jobLock = {
       say(`🔒 <b>${SKILL[id].name}</b> 已達本品質上限 Lv.${maxLv}。`);
     }
   }
-
   // 主動技能：升級後自動設為當前技能（維持原行為）
   if(SKILL[id].type!=="被動"){ p.activeSkill = id; }
   render(); autosave();
 }
-
-
   function addInv(name,c=1){ game.inv[name]=(game.inv[name]||0)+c; autosave(); }
   function decInv(name,c=1){ if(!game.inv[name]) return; game.inv[name]-=c; if(game.inv[name]<=0) delete game.inv[name]; autosave(); }
   function addEquipToInv(baseName,qual="白"){
@@ -2824,20 +2821,33 @@ const jobLock = {
     addInv(id,1);
     say(`🗡️ 獲得裝備：${fmtItem(baseName,qual)}。`);
   }
-  function makeEquipInstance(name,qual,slot,weapon,stats){
-  let base = {...(stats||{})};
-  // 白/綠/藍 → 改用固定素質（依部位）
-  if (["白","綠","藍"].includes(qual) && FIXED_LOW_TIER[slot] && FIXED_LOW_TIER[slot][qual]){
-    base = {...FIXED_LOW_TIER[slot][qual]};
+  function makeEquipInstance(name, qual, slot, weapon, stats){
+    // 先用模板給的原始素質當 base
+    let base = { ...(stats || {}) };
+    // 白 / 綠 / 藍 → 用「固定素質表」覆蓋（依部位＋品質）
+    if (["白","綠","藍"].includes(qual) &&
+        FIXED_LOW_TIER[slot] &&
+        FIXED_LOW_TIER[slot][qual]){
+      base = { ...FIXED_LOW_TIER[slot][qual] };
+    }
+    // 黃 / 橘 / 紫 → 沿用模板素質，之後靠強化成長
+    const inst = {
+      id:   "E#" + Math.random().toString(36).slice(2),
+      name,
+      qual,
+      slot,
+      weapon: weapon || null,
+      atk: Math.round(base.atk || 0),
+      def: Math.round(base.def || 0),
+      hp:  Math.round(base.hp  || 0),
+      mp:  Math.round(base.mp  || 0),
+      plus:  0,
+      stars: 0,
+      affix: []
+    };
+    addEquip(inst);
+    return inst.id;
   }
-  // 黃/橘/紫 → 沿用模板 stats（不再用舊乘數放大；強化時再長）
-  const inst={ id:"E#"+Math.random().toString(36).slice(2), name, qual, slot, weapon:weapon||null,
-    atk:Math.round(base.atk||0), def:Math.round(base.def||0),
-    hp:Math.round(base.hp||0),  mp:Math.round(base.mp||0),
-    plus:0, stars:0, affix:[] };
-  addEquip(inst);
-  return inst.id;
-}
 
   function addMountToInv(name){
   const tpl = MOUNTS[name] || {};
