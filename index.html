@@ -2796,14 +2796,24 @@ const diff = (a,b)=>{
 }
 
 
-  function combinePotion(name){
+function combinePotion(name){
   const next = nextPotionName(name);
-  if(!next) return say("此物品不可再合成。");
-  if((game.inv[name]||0) < 2) return say("需要 2 瓶同級藥水。");
-  decInv(name,2);
-  addInv(next,1);
-  say(`⚗️ 合成成功：<b>${name}</b> ×2 → <b>${next}</b> ×1`);
+  if (!next) return say("此物品不可再合成。");
+
+  const have = game.inv[name] || 0;
+  if (have < 2) return say("需要至少 2 瓶同級藥水。");
+
+  // 一次把能合的都合掉：每 2 瓶 → 1 瓶下一級
+  const times = Math.floor(have / 2);   // 可以合成幾次
+  const cost  = times * 2;              // 會消耗幾瓶
+  const gain  = times;                  // 會得到幾瓶下一級藥水
+
+  decInv(name, cost);   // 扣掉原本藥水
+  addInv(next, gain);   // 給予新藥水
+
+  say(`⚗️ 批量合成：<b>${name}</b> ×${cost} → <b>${next}</b> ×${gain}`);
 }
+
 
   function useBook(key){
     const meta=invMeta(key); if(meta.type!=="book") return;
