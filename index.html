@@ -526,16 +526,46 @@ dialog{
     <div class="tabs">
       <button class="tab active" data-tab="buy">購買</button>
       <button class="tab" data-tab="sell">販售</button>
-      <span class="right" style="margin-left:auto"><span class="gold">你的金幣：<b id="shopGold">0</b>G</span></span>
+      <span class="right" style="margin-left:auto">
+        <span class="gold">你的金幣：<b id="shopGold">0</b>G</span>
+      </span>
     </div>
+
+    <!-- 購買分頁 -->
     <div id="buyPanel">
+      <!-- 類別篩選 -->
+      <div class="row" style="gap:4px;margin:8px 0">
+        <span class="muted">篩選：</span>
+        <button class="btn small shopCatBtn active" data-cat="all">全部</button>
+        <button class="btn small shopCatBtn" data-cat="equip">武器/裝備</button>
+        <button class="btn small shopCatBtn" data-cat="consum">消耗品</button>
+        <button class="btn small shopCatBtn" data-cat="mount">坐騎</button>
+        <button class="btn small shopCatBtn" data-cat="enh">強化道具</button>
+      </div>
+
       <div class="list" id="shopBuyList"></div>
+
       <div class="row" style="justify-content:flex-end;margin-top:8px">
-        <button class="btn small" id="restockBtn">補貨</button>
+        <!-- 補貨按鈕移除，只留關閉 -->
         <button class="btn small" id="closeShop">關閉</button>
       </div>
     </div>
+
+    <!-- 販售分頁 -->
     <div id="sellPanel" style="display:none">
+      <!-- 一鍵賣出設定 -->
+      <div class="row" style="gap:4px;margin:8px 0">
+        <span class="muted">一鍵賣出：</span>
+        <select id="bulkSellFilter" class="btn small" style="flex:1;max-width:220px">
+          <option value="none">（選擇條件）</option>
+          <option value="whiteEquip">所有白色裝備</option>
+          <option value="greenEquip">所有綠色裝備</option>
+          <option value="blueEquip">所有藍色裝備</option>
+          <option value="consum">所有消耗品</option>
+        </select>
+        <button class="btn small" id="bulkSellBtn">執行</button>
+      </div>
+
       <div class="list" id="shopSellList"></div>
       <div class="row" style="justify-content:flex-end;margin-top:8px">
         <button class="btn small" id="closeShop2">關閉</button>
@@ -543,6 +573,7 @@ dialog{
     </div>
   </div>
 </dialog>
+
 
 <!-- 地圖 -->
 <dialog id="mapDlg">
@@ -3645,83 +3676,285 @@ function addRandomAffixN(inst, n){
   }
 
 
-  /* ========= 商店 ========= */
-  const shopDlg=$("#shopDlg"), buyList=$("#shopBuyList"), sellList=$("#shopSellList");
-  const restockBtn=$("#restockBtn");
-  function openShop(){ if(game.state.inBattle) return say("戰鬥中無法逛街！");
-    ensureStock(); renderShop(); shopDlg.showModal(); }
-  function ensureStock(){ if(!game.shop.stock || game.shop.stock.length===0){ game.shop.stock=shopCatalog.map(x=>({name:x.name,type:x.type,price:x.price,qty: baseQty(x)})); } }
-  function baseQty(it){ return it.type==="consum"?rnd(3,6): it.type==="mount"?1 : rnd(1,2); }
-  function renderShop(){
-    $("#shopGold").textContent=game.player.gold;
-    buyList.innerHTML='';
-    game.shop.stock.forEach(s=>{
-      const row=document.createElement("div"); row.className="row";
-      let desc="";
-      if(s.type==="equip"){ const tpl=EQUIPS[s.name]; desc=`｜白品｜ATK ${tpl.atk||0} DEF ${tpl.def||0} HP ${tpl.hp||0} MP ${tpl.mp||0}`; }
-      if(s.type==="mount"){
-      const tpl = MOUNTS[s.name] || {};
-      desc = `｜坐騎｜ATK ${tpl.atk||0} DEF ${tpl.def||0} HP ${tpl.hp||0} MP ${tpl.mp||0}｜SPD ${tpl.spd||0}`;
-      }
+    /* ========= 商店 ========= */
 
-      if(s.type==="consum"){ desc=`｜消耗品${s.name==="經驗加倍捲"?"（5 日加倍，可疊加）":""}`; }
-      row.innerHTML=`<div><b>${s.name}</b> <span class="tag">${desc}</span><br><span class="tag">價格：${s.price}G｜庫存：${s.qty}</span></div>`;
-      const buyBtn=btn("購買",()=>buyFromShop(s));
-      if(s.qty<=0) buyBtn.disabled=true;
-      row.appendChild(buyBtn); buyList.appendChild(row);
-    });
+  const shopDlg = $("#shopDlg"),
+        buyList = $("#shopBuyList"),
+        sellList = $("#shopSellList");
+  // HTML 裡已經拿掉 restockBtn，但這裡保留變數，不會壞（是 null）
+  const restockBtn = $("#restockBtn");
+
+  // 商店目前的顯示分類（all / equip / consum / mount / enh）
+  let shopCategory = "all";
+
+  // 開啟商店：只要初始化一次商品清單即可，之後不限制庫存
+  function openShop(){
+    if(game.state.inBattle) return say("戰鬥中無法逛街！");
+    ensureStock();
+    renderShop();
+    shopDlg.showModal();
+  }
+
+  // 只把 shopCatalog 複製成固定清單，不再有 qty / 補貨
+  function ensureStock(){
+    if(!game.shop.stock || game.shop.stock.length === 0){
+      game.shop.stock = shopCatalog.map(x => ({
+        name:  x.name,
+        type:  x.type,   // equip / consum / mount / 之後也可以加 enh
+        price: x.price
+      }));
+    }
+  }
+
+  // 依分類判斷要不要顯示
+  function matchShopCategory(s, cat){
+    if(cat === "all") return true;
+
+    if(cat === "equip")  return s.type === "equip";
+    if(cat === "consum") return s.type === "consum";
+    if(cat === "mount")  return s.type === "mount";
+
+    // 強化道具：預留給之後 type === "enh" 或名稱含關鍵字都可以
+    if(cat === "enh"){
+      return s.type === "enh" || /錘|鎚|強化|神器碎片/.test(s.name);
+    }
+    return true;
+  }
+
+  function renderShop(){
+    $("#shopGold").textContent = game.player.gold;
+    buyList.innerHTML = "";
+
+    // 依目前分類篩選
+    const list = (game.shop.stock || []).filter(s => matchShopCategory(s, shopCategory));
+
+    if(list.length === 0){
+      buyList.innerHTML = `<div class="row"><span class="muted">目前沒有此分類的商品。</span></div>`;
+    }else{
+      list.forEach(s=>{
+        const row = document.createElement("div");
+        row.className = "row";
+
+        let desc = "";
+        if(s.type === "equip"){
+          const tpl = EQUIPS[s.name];
+          if(tpl){
+            desc = `｜白品｜ATK ${tpl.atk||0} DEF ${tpl.def||0} HP ${tpl.hp||0} MP ${tpl.mp||0}`;
+          }else{
+            desc = "｜裝備";
+          }
+        }
+        if(s.type === "mount"){
+          const tpl = MOUNTS[s.name] || {};
+          desc = `｜坐騎｜ATK ${tpl.atk||0} DEF ${tpl.def||0} HP ${tpl.hp||0} MP ${tpl.mp||0}｜SPD ${tpl.spd||0}`;
+        }
+        if(s.type === "consum"){
+          desc = `｜消耗品${s.name==="經驗加倍捲"?"（5 日加倍，可疊加）":""}`;
+        }
+        if(s.type === "enh" && !desc){
+          desc = "｜強化道具";
+        }
+
+        row.innerHTML = `
+          <div>
+            <b>${s.name}</b>
+            <span class="tag">${desc}</span><br>
+            <span class="tag">價格：${s.price}G（庫存不限）</span>
+          </div>
+        `;
+
+        const buyBtn = btn("購買", ()=>buyFromShop(s));
+        row.appendChild(buyBtn);
+        buyList.appendChild(row);
+      });
+    }
+
     renderSellList();
   }
+
+  // ✅ 購買時可以輸入數量，不再限制庫存
   function buyFromShop(s){
-    if(s.qty<=0) return alert("已售罄");
-    if(game.player.gold<s.price) return alert("金幣不足");
-    game.player.gold-=s.price; s.qty--;
-    if(s.type==="consum"){ addInv(s.name,1); say(`🛒 買下 <b>${s.name}</b>（-${s.price}G）。`); }
-    else if(s.type==="equip"){ addEquipToInv(s.name,"白"); }
-    else if(s.type==="mount"){ addMountToInv(s.name); }
-    $("#shopGold").textContent=game.player.gold; render(); renderShop();
+    const price = s.price || 0;
+
+    let q = prompt(`要購買多少個「${s.name}」？`, "1");
+    if(q === null) return;        // 取消
+    q = parseInt(q, 10);
+    if(!Number.isFinite(q) || q <= 0){
+      alert("數量要是正整數喔。");
+      return;
+    }
+
+    // 坐騎通常只需要 1 個，這裡限制為 1
+    if(s.type === "mount"){
+      q = 1;
+    }
+
+    const total = price * q;
+    if(game.player.gold < total){
+      alert("金幣不足");
+      return;
+    }
+
+    game.player.gold -= total;
+
+    if(s.type === "consum"){
+      addInv(s.name, q);
+      say(`🛒 買下 <b>${s.name}</b> ×${q}（-${total}G）。`);
+    }else if(s.type === "equip"){
+      for(let i=0;i<q;i++) addEquipToInv(s.name,"白");
+      say(`🛒 買下 <b>${s.name}</b> ×${q}（-${total}G）。`);
+    }else if(s.type === "mount"){
+      addMountToInv(s.name);
+      say(`🛒 買下坐騎 <b>${s.name}</b>（-${total}G）。`);
+    }else if(s.type === "enh"){
+      addInv(s.name, q);
+      say(`🛒 買下 <b>${s.name}</b> ×${q}（-${total}G）。`);
+    }
+
+    $("#shopGold").textContent = game.player.gold;
+    render();
+    renderShop();
   }
+
+  // ====== 販售（支援輸入數量＋一鍵賣出） ======
+
   function renderSellList(){
-    sellList.innerHTML=''; const entries=Object.entries(game.inv);
-    if(entries.length===0){ sellList.innerHTML=`<div class="row"><span class="muted">沒有可販售的物品。</span></div>`; return; }
+    sellList.innerHTML = "";
+    const entries = Object.entries(game.inv);
+    if(entries.length === 0){
+      sellList.innerHTML = `<div class="row"><span class="muted">沒有可販售的物品。</span></div>`;
+      return;
+    }
+
     entries.forEach(([name,count])=>{
+      if(count <= 0) return;
+
       const price = sellPrice(name);
-      const row=document.createElement("div"); row.className="row";
-      row.innerHTML=`<div><b>${displayInvName(name)}</b> × ${count} <span class="tag">— 售價 ${price}G</span></div>`;
-      row.append(btn("-1",()=>sellItem(name,1,price)), btn("全部賣出",()=>sellItem(name,count,price))); sellList.appendChild(row);
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `<div><b>${displayInvName(name)}</b> × ${count} <span class="tag">— 單價 ${price}G</span></div>`;
+
+      // 1 個、輸入數量、全部賣出
+      row.append(
+        btn("賣出 1 個", ()=>sellItem(name,1,price)),
+        btn("輸入數量", ()=>{
+          let q = prompt(`要賣出多少個「${displayInvName(name)}」？（最多 ${count}）`, String(count));
+          if(q === null) return;
+          q = parseInt(q,10);
+          if(!Number.isFinite(q) || q <= 0){
+            alert("數量要是正整數喔。");
+            return;
+          }
+          q = Math.min(q, count);
+          sellItem(name,q,price);
+        }),
+        btn("全部賣出", ()=>sellItem(name,count,price))
+      );
+
+      sellList.appendChild(row);
     });
   }
-function sellPrice(name){
-  // 🧩 神器碎片：固定售價 500G
-  if(name.includes("神器碎片")) return 500;
 
-  const meta = invMeta(name);
-  if(meta.type==="consum"){
-    return Math.max(1, Math.floor((shopCatalog.find(x=>x.name===name)?.price||4)*0.5));
+  function sellPrice(name){
+    // 🧩 神器碎片：固定售價 500G
+    if(name.includes("神器碎片")) return 500;
+
+    const meta = invMeta(name);
+    if(meta.type === "consum"){
+      return Math.max(1, Math.floor((shopCatalog.find(x=>x.name===name)?.price || 4) * 0.5));
+    }
+    if(meta.type === "mount"){
+      return 5000;
+    }
+    if(meta.type === "equip"){
+      const eq = getEquipInstance(name);
+      if(!eq) return 5;
+      const affixScore = (eq.affix || []).length * 20;
+      const base = 20 + QUALITY_ORDER[eq.qual] * 40 + (eq.plus || 0) * 10 + affixScore;
+      return Math.max(5, base);
+    }
+    if(meta.type === "book"){
+      return 8;
+    }
+    return 1;
   }
-  if(meta.type==="mount"){ return 5000; }
-  if(meta.type==="equip"){
-    const eq=getEquipInstance(name); if(!eq) return 5;
-    const affixScore = (eq.affix||[]).length*20;
-    const base=20 + QUALITY_ORDER[eq.qual]*40 + (eq.plus||0)*10 + affixScore;
-    return Math.max(5, base);
+
+  function sellItem(name, cnt, price){
+    const real = Math.min(cnt, game.inv[name] || 0);
+    if(real <= 0) return;
+    decInv(name, real);
+    const got = real * price;
+    game.player.gold += got;
+    say(`💰 賣出 <b>${displayInvName(name)}</b> ×${real}，獲得 <b>${got}G</b>。`);
+    render();
+    renderSellList();
+    $("#shopGold").textContent = game.player.gold;
   }
-  if(meta.type==="book"){ return 8; }
-  return 1;
-}
 
-  function sellItem(name,cnt,price){ const real=Math.min(cnt,game.inv[name]||0); if(real<=0) return; decInv(name,real); const got=real*price; game.player.gold+=got; say(`💰 賣出 <b>${displayInvName(name)}</b> ×${real}，獲得 <b>${got}G</b>。`); render(); renderSellList(); $("#shopGold").textContent=game.player.gold; }
-  function sellSingle(name){ sellItem(name,1,sellPrice(name)); renderInventoryList(); }
+  function sellSingle(name){
+    sellItem(name, 1, sellPrice(name));
+    renderInventoryList();
+  }
 
-  // 🔧 補貨按鈕
+  // 一鍵賣出：依照下拉選單設定的條件批量處理
+  function bulkSellByFilter(mode){
+    if(!mode || mode === "none") return;
+
+    let totalGold = 0;
+    let totalCount = 0;
+
+    for(const [name, count] of Object.entries(game.inv)){
+      if(count <= 0) continue;
+      if(!matchBulkSell(name, mode)) continue;
+
+      const price = sellPrice(name);
+      const real = count;
+      decInv(name, real);
+      const got = real * price;
+      totalGold += got;
+      totalCount += real;
+    }
+
+    if(totalCount > 0){
+      game.player.gold += totalGold;
+      say(`💰 一鍵賣出 ${totalCount} 件物品，獲得 <b>${totalGold}G</b>。`);
+      render();
+      renderSellList();
+      $("#shopGold").textContent = game.player.gold;
+    }else{
+      say("沒有符合條件的物品可賣出。");
+    }
+  }
+
+  // 判斷某個物品是否符合一鍵賣出的條件
+  function matchBulkSell(name, mode){
+    const meta = invMeta(name);
+
+    if(mode === "consum"){
+      return meta.type === "consum";
+    }
+
+    if(mode.endsWith("Equip")){
+      if(meta.type !== "equip") return false;
+      const inst = getEquipInstance(name);
+      if(!inst) return false;
+
+      if(mode === "whiteEquip") return inst.qual === "白";
+      if(mode === "greenEquip") return inst.qual === "綠";
+      if(mode === "blueEquip")  return inst.qual === "藍";
+    }
+
+    return false;
+  }
+
+  // 🔧 補貨按鈕：HTML 已經拿掉，這裡留著不做事（保留舊存檔相容性）
   if(restockBtn){
-    restockBtn.onclick=()=>{
-      ensureStock();
-      game.shop.stock.forEach(s=>{ s.qty += baseQty(s); });
-      say("🧺 商店已補貨。");
-      renderShop(); autosave();
+    restockBtn.onclick = ()=>{
+      // 不再補貨，只提示一次
+      alert("現在商店庫存不限，不需要補貨囉。");
     };
   }
+
 
   /* ========= 任務 ========= */
 
@@ -4233,8 +4466,13 @@ function doRebirth(){
 
   /* ========= 綁定 ========= */
   const mapDlg=$("#mapDlg"), classDlg=$("#classDlg"), questDlg=$("#questDlg"), skillDlg=$("#skillDlg"),
-        shopClose1=$("#closeShop"), shopClose2=$("#closeShop2"), shopTabs=[...document.querySelectorAll("#shopDlg .tab")],
+        shopClose1=$("#closeShop"), shopClose2=$("#closeShop2"),
+        shopTabs=[...document.querySelectorAll("#shopDlg .tab")],
+        shopCatBtns=[...document.querySelectorAll(".shopCatBtn")],
+        bulkSellFilter=$("#bulkSellFilter"),
+        bulkSellBtn=$("#bulkSellBtn"),
         helpDlg=$("#helpDlg");
+
 
   $("#exploreBtn").onclick=explore;
   $("#restBtn").onclick=rest;
@@ -4283,6 +4521,29 @@ doRebirthBtn.onclick = ()=>{ doRebirth(); };
       $("#sellPanel").style.display=(tab==="sell")?"block":"none";
     };
   });
+  // 商店分類按鈕（全部／武器裝備／消耗品／坐騎／強化道具）
+  if(shopCatBtns && shopCatBtns.length){
+    shopCatBtns.forEach(b=>{
+      b.onclick = ()=>{
+        shopCatBtns.forEach(x=>x.classList.remove("active"));
+        b.classList.add("active");
+        shopCategory = b.getAttribute("data-cat") || "all";
+        renderShop();
+      };
+    });
+  }
+
+  // 一鍵賣出按鈕
+  if(bulkSellBtn && bulkSellFilter){
+    bulkSellBtn.onclick = ()=>{
+      const mode = bulkSellFilter.value;
+      if(mode === "none"){
+        alert("請先選擇一鍵賣出的條件。");
+        return;
+      }
+      bulkSellByFilter(mode);
+    };
+  }
 
   // 偽裝＆鍵盤
   const introDlg = document.getElementById("introDlg");
