@@ -1874,9 +1874,42 @@ function recomputeStats(applyPassives=false){
       <div class="stat lvl">等級：${p.lvl}（EXP ${p.exp}/${expNeedForLevel(p.lvl)}）</div>
       <div class="stat gold">金幣：${p.gold}｜職業：${jobName(p.job)}（${p.tier}轉）｜轉生：${p.rebirths||0} 次｜日數：${game.state.day}｜經驗加倍層數：${activeXpBuffs()}</div>
     `;
-    invBox.innerHTML = Object.keys(game.inv).length
-      ? Object.keys(game.inv).slice(0,12).map(k=>`<span class="pill">${displayInvName(k)} × ${game.inv[k]}</span>`).join("")
-      : `<span class="pill muted">（空）</span>`;
+    // 背包（快速預覽）
+    if(invBox){
+      const keys = Object.keys(game.inv).filter(k => (game.inv[k]||0) > 0);
+
+      if(keys.length === 0){
+        invBox.innerHTML = `<span class="pill muted">（空）</span>`;
+      }else{
+        invBox.innerHTML = "";
+        keys.slice(0,12).forEach(name=>{
+          const pill = document.createElement("button");
+          pill.type = "button";
+          pill.className = "pill";
+
+          // 顯示「分類 + 名稱 + 數量」
+          pill.innerHTML = `${displayInvName(name)} × ${game.inv[name]}`;
+
+          const meta = invMeta(name);
+
+          if(meta.type === "consum"){
+            // 消耗品：可以直接點擊使用
+            pill.classList.add("clickable");
+            pill.onclick = ()=>{
+              useItem(name);   // 這裡在同一個作用域，所以不會再出現 not defined
+            };
+          }else{
+            // 其他（裝備 / 坐騎 / 雜物）：點了就打開正式背包
+            pill.onclick = ()=>{
+              openInventory();
+            };
+          }
+
+          invBox.appendChild(pill);
+        });
+      }
+    }
+
     $("#runBtn").disabled=!game.state.inBattle;
     renderEnemy(); renderEquipSlots();
   }
