@@ -2590,15 +2590,53 @@ function openInventory(){
           }
         }
 
-      }else if(meta.type === "consum"){
+           }else if(meta.type === "consum"){
         const def = itemDefs[meta.ref] || {};
         extra = `｜${def.desc || ""}`;
-        right.append(btn("使用", ()=>{ useItem(name); renderInventoryList(); }));
+
+        // 🟢 單次使用（原本功能）
+        right.append(btn("使用", ()=>{ 
+          useItem(name); 
+          renderInventoryList(); 
+        }));
+
+        // 🟣 批量使用（只有非戰鬥中才允許一次用多個）
+        right.append(btn("批量使用", ()=>{
+          const have = game.inv[name] || 0;
+          if(have <= 0) return;
+
+          // 戰鬥中禁止一次吃很多，避免怪物一直輪流行動
+          if(game.state && game.state.inBattle){
+            say("⚔ 戰鬥中一次只能使用 1 個。");
+            useItem(name);
+            renderInventoryList();
+            return;
+          }
+
+          const input = prompt(`你有 ${have} 個 ${displayInvName(name)}。\n要一次使用幾個？`, "1");
+          if(input === null) return; // 按取消
+          const n = parseInt(input, 10);
+          if(isNaN(n) || n <= 0){
+            alert("請輸入大於 0 的整數。");
+            return;
+          }
+
+          const times = Math.min(n, have);
+          for(let i = 0; i < times; i++){
+            if((game.inv[name] || 0) <= 0) break; // 用到沒了就停
+            useItem(name);
+          }
+
+          renderInventoryList();
+        }));
 
         // 藥水 2 合 1（只對治療藥水鏈）
         const next = nextPotionName(meta.ref);
         if(next && (game.inv[name] || 0) >= 2){
-          right.append(btn("合成→下一級", ()=>{ combinePotion(meta.ref); renderInventoryList(); }));
+          right.append(btn("合成→下一級", ()=>{ 
+            combinePotion(meta.ref); 
+            renderInventoryList(); 
+          }));
         }
 
       }else if(meta.type === "book"){
