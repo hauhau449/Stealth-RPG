@@ -1345,9 +1345,11 @@ const MOUNTS={
 
    // 💰 全局金幣倍率：1 = 原本數字，4 = 四倍金幣
   const GOLD_RATE = 10;
+  // ⭐ 全局經驗倍率：1 = 原本數字，2 = 兩倍經驗，0.5 = 半倍經驗
+  const EXP_RATE = 1;
+  
   const CLASS_REQ=[10,30,70,120];
   const zones = buildZones();
-
   function monsterTemplate(lvl,labelTag=""){ return {
     hp: Math.round(18 + lvl*3.2),
     mp: Math.round(lvl*0.6),
@@ -1959,7 +1961,7 @@ function recomputeStats(applyPassives=false){
     const el = $("#equip-"+slot);
     if(id){
       if(slot === "mount"){
-        el.textContent = displayInvName(id);     // 坐騎維持純文字
+        el.innerHTML = displayInvName(id);     // 坐騎維持純文字
       }else{
         el.innerHTML = displayEquipName(id);     // 其他裝備吃顏色（不顯示詞條）
       }
@@ -1992,12 +1994,19 @@ function recomputeStats(applyPassives=false){
     return `${tag} ${nameHtml}${inst.plus ? ` +${inst.plus}` : ""}${starHtml}${affixShort(inst)}`;
   }
 
-  // 坐騎（M#…）
+    // 坐騎（M#…）
   if(k.startsWith("M#")){
     const tag = categoryTagForKey(k);
-    const m = getMountInstance(k);
+
+    // 先從目前記憶體找，如果沒有就試著從存檔還原
+    let m = getMountInstance(k);
+    if(!m){
+      m = tryRestoreMountFromSave(k);
+    }
+
     return m ? `${tag} ${m.name}` : `${tag} ${k}`;
   }
+
 
   // 其他道具（技能書 / 消耗品）
   const tag = categoryTagForKey(k);
@@ -2194,24 +2203,48 @@ function displayEquipName(id){
     render(); autosave();
   }
   function gainExp(v){
-    const p=game.player; p.exp+=v;
-    while(p.exp>=expNeedForLevel(p.lvl)){
+    // 🔧 經驗倍率入口：所有來源的 EXP 都會先乘上 EXP_RATE
+    const rate = (typeof EXP_RATE !== "undefined" ? EXP_RATE : 1);
+    const add  = Math.floor(v * rate);
+
+    const p = game.player;
+    p.exp += add;
+
+    while(p.exp >= expNeedForLevel(p.lvl)){
       p.exp -= expNeedForLevel(p.lvl);
-const before = { maxhp:p.maxhp, maxmp:p.maxmp, atk:p.atk, def:p.def };
-p.lvl++;
-recomputeStats(false);
-const dhp  = p.maxhp - before.maxhp;
-const dmp  = p.maxmp - before.maxmp;
-const datk = p.atk   - before.atk;
-const ddef = p.def   - before.def;
-// 滿血/滿魔（可改成保留比例，依你的遊戲手感）
-p.hp = p.maxhp; p.mp = p.maxmp;
-say(`🎉 升級到 <b>Lv.${p.lvl}</b>！HP ${dhp>=0?"+":""}${dhp}, MP ${dmp>=0?"+":""}${dmp}, 攻 ${datk>=0?"+":""}${datk}, 防 ${ddef>=0?"+":""}${ddef}。`);
+
+      const before = {
+        maxhp: p.maxhp,
+        maxmp: p.maxmp,
+        atk:   p.atk,
+        def:   p.def
+      };
+
+      p.lvl++;
+      recomputeStats(false);
+
+      const dhp  = p.maxhp - before.maxhp;
+      const dmp  = p.maxmp - before.maxmp;
+      const datk = p.atk   - before.atk;
+      const ddef = p.def   - before.def;
+
+      // 滿血 / 滿魔（可改成保留比例，依你的遊戲手感）
+      p.hp = p.maxhp;
+      p.mp = p.maxmp;
+
+      say(
+        `🎉 升級到 <b>Lv.${p.lvl}</b>！` +
+        `HP ${dhp>=0?"+":""}${dhp}, ` +
+        `MP ${dmp>=0?"+":""}${dmp}, ` +
+        `攻 ${datk>=0?"+":""}${datk}, ` +
+        `防 ${ddef>=0?"+":""}${ddef}。`
+      );
 
       checkUnlocks();
-      if(p.lvl%10===0) refreshQuestsForLevel(p.lvl);
+      if(p.lvl % 10 === 0) refreshQuestsForLevel(p.lvl);
     }
   }
+
   function updatePassivesOnKill(){
     const job=game.player.job;
     game.player.passiveKills[job]=(game.player.passiveKills[job]||0)+1;
@@ -4003,7 +4036,6 @@ function addRandomAffixN(inst, n){
 
     return false;
   }
-
   // 🔧 補貨按鈕：HTML 已經拿掉，這裡留著不做事（保留舊存檔相容性）
   if(restockBtn){
     restockBtn.onclick = ()=>{
@@ -4011,11 +4043,7 @@ function addRandomAffixN(inst, n){
       alert("現在商店庫存不限，不需要補貨囉。");
     };
   }
-
-
-  /* ========= 任務 ========= */
-
-  
+  /* ========= 任務 ========= */  
   // 依等級解鎖可接受任務（從 locked → available）
   function refreshQuestsForLevel(lvl){
     if(!Array.isArray(game.quests)) return;
@@ -4080,8 +4108,7 @@ function addRandomAffixN(inst, n){
       }
     }
     return parts.join("、");
-  }
-  
+  }  
 // ✅ 遊戲載入或需要時檢查：如果所有任務都已領獎，就刷新一輪
 function refreshQuestsIfAllRewarded(){
   const qs = Array.isArray(game.quests) ? game.quests : [];
@@ -4094,12 +4121,10 @@ function refreshQuestsIfAllRewarded(){
     renderQuestList();
     autosave();
   }
-}
-  
+}  
   function renderQuestList(){
     const box = $("#questList");
     box.innerHTML = "";
-
     if(!Array.isArray(game.quests) || game.quests.length === 0){
       const row = document.createElement("div");
       row.className = "row";
@@ -4107,7 +4132,6 @@ function refreshQuestsIfAllRewarded(){
       box.appendChild(row);
       return;
     }
-
     game.quests.forEach(q=>{
       const row = document.createElement("div");
       row.className = "row";
@@ -4120,7 +4144,6 @@ function refreshQuestsIfAllRewarded(){
         case "available": st = "📜 可接受"; break;
         default:          st = "🔒 未解鎖"; break;
       }
-
       const needSubmitBtn = (q.state === "active") &&
         (q.req?.submitItems || q.req?.submitEquip);
 
@@ -4141,8 +4164,6 @@ function refreshQuestsIfAllRewarded(){
             : ""}
         </div>
       `;
-
-
       row.onclick = (ev)=>{
         const btn = ev.target.closest("button[data-act]");
         if(!btn) return;
@@ -4150,15 +4171,12 @@ function refreshQuestsIfAllRewarded(){
         const id  = btn.dataset.qid;
         const qq  = game.quests.find(x=>x.id === id);
         if(!qq) return;
-
         if(act === "accept")      acceptQuest(qq);
         else if(act === "submit") trySubmitQuest(qq);
         else if(act === "reward") claimQuestReward(qq);
-
         renderQuestList();
         autosave();
       };
-
       box.appendChild(row);
     });
   }
@@ -4194,14 +4212,12 @@ function refreshQuestsIfAllRewarded(){
     }
     return "—";
   }
-
   function acceptQuest(q){
     if(q.state !== "available") return;
     q.state = "active";
     if(!q.progress) q.progress = {};
     say(`📜 接受任務：<b>${q.name}</b>`);
   }
-
   function trySubmitQuest(q){
     if(q.state !== "active") return;
     const req = q.req || {};
@@ -4246,7 +4262,6 @@ function refreshQuestsIfAllRewarded(){
       say(`📦 你已提交裝備，<b>${q.name}</b> 已可領取獎勵。`);
     }
   }
-
  function claimQuestReward(q){
     if(q.state !== "done") return;
 
@@ -4260,11 +4275,7 @@ function refreshQuestsIfAllRewarded(){
 
     // 🌟 檢查是否所有任務已領獎，如果是就刷新
     refreshQuestsIfAllRewarded();
-
   }
-
-
-
   // 擊殺任意怪物的進度更新
   function updateQuestProgressOnKill(name){
     if(!Array.isArray(game.quests)) return;
@@ -4444,18 +4455,12 @@ function afkTick(){
     // MP 不足 / 沒有技能可用 → 用普通攻擊頂上，避免掛機卡死
     playerAttack();
   }
-
   // ✅ 勝負判定
   if(st.enemy && st.enemy.hp <= 0){
     endBattle(true);
     return;
   }
-
-}
-
-
-
-  
+}  
 // ==========================
 // ♻️ 轉生功能
 // ==========================
@@ -4716,8 +4721,6 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
     enemyTurn(); 
   } 
 }
-
-
     // 啟動
   load();
   initAllArtifactFragments();            // ⬅ 在這裡先註冊所有神器碎片道具
@@ -4727,8 +4730,6 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
   if(game.quests.length===0) seedQuests();
   intro();
   render();
-
-
   // 開場介紹只在未勾選不再顯示時跳出
   try{ if(localStorage.getItem(INTRO_KEY)!=="1"){ openIntro(false); } }catch(e){ openIntro(false); }
 
