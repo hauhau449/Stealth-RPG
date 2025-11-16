@@ -3352,31 +3352,27 @@ if(inst.qual && inst.qual.startsWith("神器")){
     }else{
       say(`🟥 神器強化成功：+${inst.plus}`);
     }
-    }else{
+  }else{
     const fb = FAIL_BEHAVIOR.神器(s);
     if(Math.random() < fb.rate){
-      // 有機會掉階：+ 等級下降，同時扣回對應的屬性
-      if(p > 0){
-        inst.plus = p - 1;
-
-        const d = PLUS_DELTA.神器;
-        if(d){
-          inst.atk -= d.atk;
-          inst.def -= d.def;
-          inst.hp  -= d.hp;
-          inst.mp  -= d.mp;
-        }
-
-        say(`❌ 神器強化失敗，降為 +${inst.plus}`);
-      }else{
-        // 已經是 +0 就只提示，不再扣
-        say("❌ 神器強化失敗，但已是 +0。");
-      }
+      inst.plus = Math.max(0, p - 1);
+      say(`❌ 神器強化失敗，降為 +${inst.plus}`);
     }else{
-      // 保級：什麼都不變
       say("❌ 神器強化失敗（保級）。");
     }
   }
+
+  // 🔻 不論成功 / 失敗，都把 ㄅㄅㄐ  buff 清掉
+  if(!game.buffs) game.buffs = {xpLayers:[], artiHammer:0};
+  game.buffs.artiHammer = 0;
+
+  recomputeStats(false);
+  renderEnhancePanel();
+  render();
+  autosave();
+  return;
+}
+
 
   // 🟦 其他品質：只能強化 藍 / 黃 / 橘 / 紫
   if(!["藍","黃","橘","紫"].includes(inst.qual)){
