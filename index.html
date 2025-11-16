@@ -36,7 +36,12 @@
   .card h3{margin:0 0 8px 0;font-size:13px;color:var(--muted);font-weight:700}
   .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:6px}
   .stat{background:var(--panel);border:1px solid #0005;border-radius:8px;padding:8px;font-feature-settings:"tnum";font-variant-numeric:tabular-nums}
-  .hp{color:#22c55e}.mp{color:#60a5fa}.atk{color:#f472b6}.def{color:#fbbf24}.lvl{color:#a78bfa}.gold{color:var(--gold)}
+    .hp{color:#22c55e}.mp{color:#60a5fa}.atk{color:#f472b6}.def{color:#fbbf24}.lvl{color:#a78bfa}.gold{color:var(--gold)}
+.diff-up{color:var(--bad);}      /* 數值上升 → 紅色 */
+.diff-down{color:var(--good);}  /* 數值下降 → 綠色 */
+.diff-zero{color:var(--muted);} /* 沒變 → 灰色 */
+  .eq-affix-line{font-size:12px;color:var(--muted);margin-left:1.5em}
+
   .actions{display:flex;flex-wrap:wrap;gap:8px}
   .log{height:260px;overflow:auto;background:#0b0f16;border:1px dashed var(--dash);padding:10px;border-radius:8px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
   .log p{margin:.35em 0}
@@ -2591,26 +2596,67 @@ function openInventory(){
       return;
     }
 
-    const diff = (a,b)=>{
-      const d = (a||0) - (b||0);
-      if(d > 0) return `+${d}`;
-      if(d < 0) return `${d}`;
-      return "0";
+    // 數值差異：上升綠色、下降紅色、沒變灰色
+const diff = (a,b)=>{
+  const d = (a||0) - (b||0);
+
+  if(d > 0)
+    return `<span class="diff-up">+${d}   🟥</span>`;   // 上升 → 紅色＋上箭頭
+
+  if(d < 0)
+    return `<span class="diff-down">${d} 🟩</span>`;  // 下降 → 綠色＋下箭頭
+
+  return `<span class="diff-zero">0</span>`;          // 無變化 → 灰色
+};
+
+
+
+    // 詞條內文（如果沒有詞條就顯示「無特殊詞條」）
+    const affixText = (inst)=>{
+      const s = affixShort(inst);
+      return (s && s.trim()) ? s : "（無特殊詞條）";
+    };
+
+    // 取得詞條顯示名稱
+    const affixLabel = (key)=>{
+      const def = AFFIX_LIB.find(x=>x.key===key);
+      return def ? (def.name || key) : key;
+    };
+
+    // 詞條變化描述：新增／移除什麼詞條
+    const affixChange = (oldInst, newInst)=>{
+      const oldKeys = (oldInst?.affix || []).map(a=>a.key);
+      const newKeys = (newInst?.affix || []).map(a=>a.key);
+
+      const added   = newKeys.filter(k => !oldKeys.includes(k));
+      const removed = oldKeys.filter(k => !newKeys.includes(k));
+
+      const parts = [];
+      if(added.length)   parts.push(`新增：${added.map(affixLabel).join("、")}`);
+      if(removed.length) parts.push(`移除：${removed.map(affixLabel).join("、")}`);
+
+      return parts.length ? parts.join("｜") : "無變化";
     };
 
     equipCompare.innerHTML = `
       <div class="row" style="flex-direction:column;align-items:flex-start">
         <div><b>目前裝備：</b>${displayEquipName(eid)}｜ATK ${cur.atk||0} DEF ${cur.def||0} HP ${cur.hp||0} MP ${cur.mp||0}</div>
+        <div class="eq-affix-line"><b>目前詞條：</b>${affixText(cur)}</div>
+
         <div><b>背包選取：</b>${displayEquipName(id)}｜ATK ${eq.atk||0} DEF ${eq.def||0} HP ${eq.hp||0} MP ${eq.mp||0}</div>
+        <div class="eq-affix-line"><b>背包詞條：</b>${affixText(eq)}</div>
+
         <div><b>差異（背包 − 身上）：</b>
           ATK ${diff(eq.atk,cur.atk)}／
           DEF ${diff(eq.def,cur.def)}／
           HP ${diff(eq.hp,cur.hp)}／
           MP ${diff(eq.mp,cur.mp)}
         </div>
+        <div><b>詞條變化：</b>${affixChange(cur, eq)}</div>
       </div>
     `;
   }
+
   
   function invMeta(key){
     if(key.startsWith("E#")) return {type:"equip"};
