@@ -516,7 +516,7 @@ dialog{
   <div class="log-content">
     ・技能升級，需求技能書數量及升階調整。<br>
     ・修復技能升級傷害未提升。<br>
-    ・移除戰士技能[痛擊]。<br>
+    ・移除戰士技能[猛擊]。<br>
     ・修復隱藏道具掉落[xxx之槌]。<br>
     ・四轉[聖光裁決]可學習全職業技能。<br>
     ・微調轉職後素質加成。<br>
@@ -910,7 +910,8 @@ headbutt:{
 
 
   // ===== 戰士系：猛擊（如果你還要留著可以保留原本的） =====
-  smash:{
+ /*
+    smash:{
     id:"smash",
     name:"猛擊",
     type:"主動",
@@ -933,7 +934,7 @@ headbutt:{
       return true;
     }
   },
-
+*/
   // ===== 法師系：火球術 =====
   fireball:{
     id:"fireball",
@@ -1079,7 +1080,7 @@ const XP_SCROLL_RATE = 2.0;
     "技能書：火球術":{type:"book", skill:"fireball"},
     "技能書：連擊":{type:"book", skill:"flurry"},
     "技能書：破甲斬":{type:"book", skill:"armorbreak"},
-    "技能書：猛擊":{type:"book", skill:"armorbreak"},
+  //  "技能書：猛擊":{type:"book", skill:"armorbreak"},
     "秘傳：萬斬":{type:"book", skill:"omnislash"},
     "ㄅㄅㄐ之錘":{type:"consum",desc:"本次神器強化每使用1槌 +1% 成功率（可疊加，強化後歸零）。",use:(p)=>{if(!game.buffs) game.buffs={xpLayers:[],artiHammer:0};game.buffs.artiHammer = (game.buffs.artiHammer||0) + 1;
     decInv("ㄅㄅㄐ之錘",1);
@@ -1167,7 +1168,7 @@ const MOUNTS={
     {item:"技能書：專注",rate:0.05},
     {item:"技能書：火球術",rate:0.04},
     {item:"技能書：連擊",rate:0.04},
-    {item:"技能書：猛擊",rate:0.04},
+//    {item:"技能書：猛擊",rate:0.04},
   ];
 
   // 🔻 基本藥水依等級分配（最高到「高級」）
@@ -4158,6 +4159,7 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
 
 
 
