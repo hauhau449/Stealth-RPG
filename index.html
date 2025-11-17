@@ -447,10 +447,10 @@ dialog{
       <div class="sep"></div>
       <h3>裝備</h3>
       <div class="equip">
-        <div class="slot" id="slot-weapon"><b>武器</b><span id="equip-weapon" class="muted">（空）</span></div>
-        <div class="slot" id="slot-armor"><b>防具</b><span id="equip-armor" class="muted">（空）</span></div>
-        <div class="slot" id="slot-acc"><b>飾品</b><span id="equip-acc" class="muted">（空）</span></div>
-        <div class="slot" id="slot-mount"><b>坐騎</b><span id="equip-mount" class="muted">（無）</span></div>
+        <div class="slot" id="slot-weapon"><b>武器</b><span id="equip-weapon">（空）</span></div>
+        <div class="slot" id="slot-armor"><b>防具</b><span id="equip-armor">（空）</span></div>
+        <div class="slot" id="slot-acc"><b>飾品</b><span id="equip-acc" >（空）</span></div>
+        <div class="slot" id="slot-mount"><b>坐騎</b><span id="equip-mount" >（無）</span></div>
       </div>
 
       <div class="sep"></div>
@@ -665,6 +665,15 @@ dialog{
     ・地圖重新調整。<br>
     ・坐騎強度待調整。<br>
     ・怪物強度待調整。<br>
+  </div>
+</div>
+  <!-- ⬇⬇⬇ 11/17更新如下 ⬇⬇⬇ -->
+   <div class="log-entry">
+  <div class="log-date">2025/11/17</div>
+  <div class="log-content">
+    ・修復破甲斬技能書掉落。<br>
+    ・新增裝備處顏色顯示。<br>
+    ・新增背包預覽處排序。<br>
   </div>
 </div>
      <!-- ⬇⬇⬇ 11/16更新如下 ⬇⬇⬇ -->
@@ -1368,10 +1377,11 @@ const MOUNTS={
 
  function baseDropsForLevel(lvl,tag){
   const base = [
-    {item:"技能書：活力",rate:0.06},
-    {item:"技能書：專注",rate:0.05},
+    {item:"技能書：活力",rate:0.00},//技能書掉落率
+    {item:"技能書：專注",rate:0.00},
     {item:"技能書：火球術",rate:0.04},
     {item:"技能書：連擊",rate:0.04},
+    {item:"技能書：破甲斬",rate:0.04},   // ★ 新增這行
 //    {item:"技能書：猛擊",rate:0.04},
   ];
 
@@ -1924,7 +1934,26 @@ function recomputeStats(applyPassives=false){
         invBox.innerHTML = `<span class="pill muted">（空）</span>`;
       }else{
         invBox.innerHTML = "";
-        keys.slice(0,12).forEach(name=>{
+
+        // 先把背包內容轉成「含類型資訊」的陣列，準備排序
+        const entries = keys.map(name=>{
+          const meta = invMeta(name);
+          let typeOrder =
+            meta.type === "consum" ? 0 :   // 消耗品
+            meta.type === "book"  ? 1 :   // 技能書
+            meta.type === "equip" ? 2 :   // 裝備
+            meta.type === "mount" ? 3 :   // 坐騎
+                                      4;  // 其他
+          return { name, meta, typeOrder };
+        }).sort((a,b)=>{
+          // 先比類型優先順序
+          if(a.typeOrder !== b.typeOrder) return a.typeOrder - b.typeOrder;
+          // 同類型再比名稱（你之後想改成照品質也可以調這裡）
+          return a.name.localeCompare(b.name, "zh-Hant");
+        });
+
+        // 只顯示前 12 個（避免太擠）
+        entries.slice(0,12).forEach(({name, meta})=>{
           const pill = document.createElement("button");
           pill.type = "button";
           pill.className = "pill";
@@ -1932,13 +1961,11 @@ function recomputeStats(applyPassives=false){
           // 顯示「分類 + 名稱 + 數量」
           pill.innerHTML = `${displayInvName(name)} × ${game.inv[name]}`;
 
-          const meta = invMeta(name);
-
           if(meta.type === "consum"){
             // 消耗品：可以直接點擊使用
             pill.classList.add("clickable");
             pill.onclick = ()=>{
-              useItem(name);   // 這裡在同一個作用域，所以不會再出現 not defined
+              useItem(name);
             };
           }else{
             // 其他（裝備 / 坐騎 / 雜物）：點了就打開正式背包
@@ -1951,6 +1978,7 @@ function recomputeStats(applyPassives=false){
         });
       }
     }
+
 
     $("#runBtn").disabled=!game.state.inBattle;
     renderEnemy(); renderEquipSlots();
@@ -2016,15 +2044,17 @@ function recomputeStats(applyPassives=false){
 
 
 function displayEquipName(id){
-  const inst = getEquipInstance(id); if(!inst) return id;
+  const inst = getEquipInstance(id); 
+  if(!inst) return id;
+  // 🧩 這裡用 fmtItem + inst.qual，就會吃到你的品質顏色
   const nameHtml = fmtItem(inst.name, inst.qual); // 依品質上色
   const starHtml = (inst.qual==="紫" || inst.qual==="神器") && (inst.stars>0)
     ? ` <span class="star">${inst.stars}☆</span>` : "";
-  const tag = categoryTagForKey(id); // 這裡會給 [武器] / [防具] / [飾品] / [坐騎]
-
-  // ➜ 變成「[武器] 木劍 +N ☆」
-  return `${tag} ${nameHtml}${inst.plus ? ` +${inst.plus}` : ""}${starHtml}`; // 不附詞條
+  const tag = categoryTagForKey(id); // [武器] / [防具] / [飾品] / [坐騎]
+  // ➜ 「[武器] 木劍 +5 ☆」整串會帶顏色
+  return `${tag} ${nameHtml}${inst.plus ? ` +${inst.plus}` : ""}${starHtml}`;
 }
+
 
 
 
@@ -3056,24 +3086,25 @@ function addEquip(inst){
     }catch(_){}
     return null;
   }
-   displayEquipName = function(id){
-    let inst=getEquipInstance(id);
-    if(!inst && typeof id==="string" && id.startsWith("E#")) {
-      inst = tryRestoreEquipFromSave(id);
+displayEquipName = function(id){
+  let inst = getEquipInstance(id);
+  if(!inst && typeof id==="string" && id.startsWith("E#")){
+    inst = tryRestoreEquipFromSave(id);
+  }
+  if(!inst){
+    try{
+      return __orig_displayEquipName(id);
+    }catch(_){
+      return "（裝備資料遺失）";
     }
-    if(!inst){
-      try{
-        // 沒拿到實例就交回原本的版本處理（同樣不附詞條）
-        return __orig_displayEquipName(id);
-      }catch(_){
-        return "（裝備資料遺失）";
-      }
-    }
+  }
+  const nameHtml = fmtItem(inst.name, inst.qual);   // ★ 套用品質顏色 ★
+  const starHtml = (inst.qual === "紫" || inst.qual === "神器") && (inst.stars > 0)
+    ? ` <span class="star">${inst.stars}☆</span>`
+    : "";
+  return `${nameHtml}${inst.plus ? ` +${inst.plus}` : ""}${starHtml}`;
+};
 
-    // 這裡也維持「只顯示名稱＋+N」，完全不要加詞條
-    const show = inst.qual==="神器" ? `[神器☆${inst.name}]` : inst.name;
-    return `${show}${inst.plus ? ` +${inst.plus}` : ""}`;
-  };
 
   displayInvName = function(k){
     // 裝備實體 E#...
