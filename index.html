@@ -360,16 +360,28 @@ dialog{
     margin-left:4px;
   }
 }
+/*標題大小*/
+.title{
+  text-align:center;
+}
 
-
-
-
+.title-img{
+  width:100%;
+  max-width:600px;
+  display:block;
+  margin:auto;
+}
+/*標題大小*/  
 </style>
 </head>
 <body>
 <div class="wrap">
    <div class="topbar">
-    <div class="title">Stealth RPG KPI — Full Build</div>
+  <!--  <div class="title">Stealth RPG KPI — Full Build</div>  -->
+     <div class="title">
+  <img src="title.png" class="title-img" alt="Game Title">
+</div>
+<!----------------------------------->
     <div class="row">
       <!-- 常用按鈕：手機也直接顯示 -->
       <button class="btn small primary-btn" id="mapBtn">🗺️ 地圖</button>
@@ -4771,3 +4783,4 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
+
