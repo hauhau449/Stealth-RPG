@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Stealth RPG KPI — Full Build</title>
+<title>終焉之境-無限掛機RPG</title>
 <style>
   :root{
     --bg:#0f1115; --fg:#e5e7eb; --muted:#94a3b8; --good:#22c55e; --bad:#ef4444; --card:#111827;
@@ -361,27 +361,38 @@ dialog{
   }
 }
 /*標題大小*/
+.topbar{
+  display:flex;
+  align-items:center;   /* 垂直置中 */
+  justify-content:flex-start;  /* 大家靠左排，取消兩端對齊 */
+  gap:16px;             /* 標題圖示和按鈕中間的距離 */
+}
+
+
 .title{
-  text-align:center;
+  margin:0;             /* 避免標題區塊多餘空白 */
+  padding:0;
 }
 
 .title-img{
-  width:100%;
-  max-width:250px;
+  height:70px;          /* 控制 Logo 高度 */
+  width:auto;
   display:block;
-  margin:auto;
+  margin:0;
 }
+
+
+
 /*標題大小*/  
 </style>
 </head>
 <body>
 <div class="wrap">
    <div class="topbar">
-<div class="title">Stealth RPG KPI — Full Build</div>
-    <!--
+  <!--  <div class="title">Stealth RPG KPI — Full Build</div>  -->
      <div class="title">
-  <img src="title.png" class="title-img" alt="Game Title">
-</div>               -->
+  <img src="title.png" class="title-img">
+</div>
 <!----------------------------------->
     <div class="row">
       <!-- 常用按鈕：手機也直接顯示 -->
@@ -4784,6 +4795,4 @@ const m = Math.max(1, Math.floor(game.player.maxmp * pct));
 </script>
 </body>
 </html>
-
-
 
