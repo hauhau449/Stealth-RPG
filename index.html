@@ -877,7 +877,7 @@ dialog{
   function toggleUpdateLog(){
   const body = document.querySelector('#updateLog .log-body');
   const toggle = document.getElementById('logToggle');
-  if(!body) return;
+  if(!body || !toggle) return;
   const hidden = body.hasAttribute('hidden');
   if(hidden){
     body.removeAttribute('hidden');
