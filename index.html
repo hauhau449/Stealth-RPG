@@ -1607,13 +1607,38 @@ function nextPotionName(name){
 
   const rnd=(n,m)=>Math.floor(Math.random()*(m-n+1))+n;
   const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-  const say=html=>{ const p=document.createElement("p"); p.innerHTML=html; log.appendChild(p); log.scrollTop=log.scrollHeight; autosave(); };
+
+  const LOG_MAX_KEEP = 400;      // 觸發修剪的上限
+  const LOG_TRIM_TARGET = 300;   // 修剪後保留的目標行數
+
+  function trimLog(){
+    const count = log.childElementCount;
+    if(count <= LOG_MAX_KEEP) return;
+
+    const remove = Math.max(0, count - LOG_TRIM_TARGET);
+    for(let i=0; i<remove; i++){
+      const first = log.firstChild;
+      if(!first) break;
+      log.removeChild(first);
+    }
+  }
+
+  function appendLog(html, {save=true} = {}){
+    const p=document.createElement("p");
+    p.innerHTML=html;
+    log.appendChild(p);
+    trimLog();
+    log.scrollTop=log.scrollHeight;
+    if(save) autosave();
+  }
+
+  const say=html=> appendLog(html);
 /* ================2合1藥水鏈=============== */
   /* =============================== */
   /* [ADD] 全域錯誤寫入冒險日誌（排錯用） */
   /* =============================== */
   window.addEventListener('error', e=>{
-    try{ const p=document.createElement('p'); p.innerHTML=`⚠️ <b>腳本錯誤</b>：${e.message}`; log.appendChild(p); log.scrollTop=log.scrollHeight; }catch(_){}
+    try{ appendLog(`⚠️ <b>腳本錯誤</b>：${e.message}`, {save:false}); }catch(_){}
   });
 
   const colorQual=(q)=> QUAL_CLASS[QUALITY_ORDER[q]||0]||"";
