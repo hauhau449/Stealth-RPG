@@ -1,0 +1,379 @@
+:root{
+    --bg:#0f1115; --fg:#e5e7eb; --muted:#94a3b8; --good:#22c55e; --bad:#ef4444; --card:#111827;
+    --btn:#1f2937; --btnh:#374151; --accent:#7dd3fc; --cyan:#22d3ee; --gold:#eab308; --violet:#a78bfa;
+    --panel:#0b1220; --dash:#334155;
+      /* 品質色 */
+  --q-white:#e5e7eb; --q-green:#34d399; --q-blue:#60a5fa; --q-yellow:#facc15; --q-orange:#fb923c; --q-purple:#a78bfa; --q-arti-red:#ef4444;
+.q-arti{ color:#ff6b6b; } /* 神器顯示用紅色，可自行調亮度 */
+
+  }
+  html,body{height:100%;margin:0}
+  body{background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans TC",sans-serif}
+  .wrap{max-width:1180px;margin:0 auto;padding:12px}
+  .topbar{display:flex;gap:8px;align-items:center;justify-content:space-between}
+  .title{font-weight:700;letter-spacing:.3px;color:var(--muted)}
+ 
+  .more-menu{                        /* 更多功能下拉選單（手機用） */
+    display:none;                 /* 先隱藏，之後在手機版打開 */
+    border:1px solid #0003;
+    background:var(--btn);
+    color:var(--fg);
+    border-radius:8px;
+    padding:4px 6px;
+    font-size:12px;
+  }
+  .btn{border:1px solid #0003;background:var(--btn);color:var(--fg);padding:8px 10px;border-radius:10px;cursor:pointer}
+  .btn:hover{background:var(--btnh)} .btn.small{padding:4px 8px;font-size:12px;border-radius:8px}
+  .grid{display:grid;grid-template-columns:1.4fr .8fr;gap:12px;margin-top:10px}
+  .card{background:var(--card);border:1px solid #0005;border-radius:12px;padding:10px}
+  .card h3{margin:0 0 8px 0;font-size:13px;color:var(--muted);font-weight:700}
+  .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:6px}
+  .stat{background:var(--panel);border:1px solid #0005;border-radius:8px;padding:8px;font-feature-settings:"tnum";font-variant-numeric:tabular-nums}
+    .hp{color:#22c55e}.mp{color:#60a5fa}.atk{color:#f472b6}.def{color:#fbbf24}.lvl{color:#a78bfa}.gold{color:var(--gold)}
+.diff-up{color:var(--bad);}      /* 數值上升 → 紅色 */
+.diff-down{color:var(--good);}  /* 數值下降 → 綠色 */
+.diff-zero{color:var(--muted);} /* 沒變 → 灰色 */
+  .eq-affix-line{font-size:12px;color:var(--muted);margin-left:1.5em}
+
+  .actions{display:flex;flex-wrap:wrap;gap:8px}
+  .log{height:260px;overflow:auto;background:#0b0f16;border:1px dashed var(--dash);padding:10px;border-radius:8px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+  .log p{margin:.35em 0}
+  .sep{height:1px;background:#0005;margin:10px 0}
+  .inv{display:flex;flex-wrap:wrap;gap:8px}
+  .pill{border:1px solid #0006;background:var(--panel);padding:6px 8px;border-radius:999px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .enemy{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .bar{height:10px;background:var(--panel);border:1px solid #0005;border-radius:999px;overflow:hidden}
+  .bar>span{display:block;height:100%}
+  .bar.hp>span{background:#22c55e}.bar.mp>span{background:#60a5fa}
+  .equip{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .slot{background:var(--panel);border:1px dashed var(--dash);border-radius:8px;padding:8px;min-height:58px;cursor:pointer}
+  .slot b{display:block;margin-bottom:4px;color:var(--muted);font-size:12px}
+  .hint{color:var(--muted);font-size:12px}
+  .kbd{font-family:ui-monospace,Menlo,Consolas,monospace;background:#111827;color:#e5e7eb;border-radius:6px;padding:2px 6px;border:1px solid #0006}
+  /* 偽裝（報表） */
+  body.stealth{background:#fff;color:#111827}
+  body.stealth .card{background:#fff;border:1px solid #e5e7eb}
+  body.stealth .title{color:#111827}
+  body.stealth .btn{background:#f3f4f6;color:#111827;border-color:#e5e7eb}
+  body.stealth .btn:hover{background:#e5e7eb}
+  .sheet{display:none}
+  body.stealth .game{display:none}
+  body.stealth .sheet{display:block}
+  table{border-collapse:collapse;width:100%;font-size:12px}
+  th,td{border:1px solid #e5e7eb;padding:6px;text-align:right}
+  th{background:#f9fafb;color:#111827;text-align:center}
+
+  /* 對話框 */
+  dialog{border:none;border-radius:12px;padding:0;box-shadow:0 10px 30px #0008;background:var(--card);color:var(--fg);max-width:760px}
+  dialog::backdrop{background:#0008}
+  .dlg{padding:12px}
+  .dlg h4{margin:0 0 8px 0;color:var(--muted)}
+  .list{max-height:380px;overflow:auto;border:1px dashed var(--dash);border-radius:10px}
+  .list .row{justify-content:space-between;border-bottom:1px dotted var(--dash);padding:8px}
+  .list .row:last-child{border-bottom:none}
+  .tag{font-size:12px;opacity:.85}
+  .right{margin-left:auto;display:flex;gap:6px}
+  .tabs{display:flex;gap:6px;margin-bottom:8px}
+  .tab{padding:6px 10px;border-radius:8px;border:1px solid #0005;background:var(--panel);cursor:pointer}
+  .tab.active{outline:2px solid var(--accent)}
+  .q-white{color:var(--q-white)} .q-green{color:var(--q-green)} .q-blue{color:var(--q-blue)}
+  .q-yellow{color:var(--q-yellow)} .q-orange{color:var(--q-orange)} .q-purple{color:var(--q-purple)} .q-arti-red{color:var(--q-arti-red)} .q-arti{color:var(--q-purple)}
+.arti-name{color:var(--q-arti-red);font-weight:700}
+
+  /* =============================== */
+  /* [ADD] 對話框 polyfill 外觀與保底樣式 */
+  /* =============================== */
+  .modal-backdrop{ position:fixed; inset:0; background:#0008; z-index:9998; }
+  dialog{ z-index:9999; }
+  dialog[open]{ display:block; }
+  body.has-modal{ overflow:hidden; }
+/* =============================== */
+/* [OPT] 高對比可讀性強化（深色主題） */
+/* 只做覆寫，不改動原有變數與結構    */
+/* =============================== */
+
+/* 1) 全域：微調前景與提示色對比 */
+:root{
+  --fg-strong: #f5f7fb;            /* 主要文字更亮 */
+  --muted-strong: #b6c2d2;         /* 次要文字提高亮度 */
+  --gold-strong: #ffd24a;          /* 金幣更亮、偏暖 */
+  --accent-strong: #38bdf8;        /* 分頁/高亮外框 */
+}
+body{ color: var(--fg-strong); }
+.hint, .tag{ color: var(--muted-strong); }
+
+/* 2) 按鈕：加大對比與可聚焦樣式 */
+.btn{
+  background: #253042;             /* 比原本更亮一階 */
+  border-color: #0008;
+  color: var(--fg-strong);
+}
+.btn:hover{ background:#324155; }
+.btn:focus-visible{
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+/* 3) 商店分頁：強化選中與未選中對比 */
+.tab{
+  background:#1b2330;
+  border-color:#3b4252;
+  color:#e8edf6;
+}
+.tab:hover{ background:#243044; }
+.tab.active{
+  background:#0f172a;              /* 更深色作對比 */
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 2px #0b0f16, 0 0 0 4px rgba(56,189,248,.6);
+  color:#ffffff;
+}
+
+/* 4) 金幣顯示：更亮＋輕微發光 */
+.gold{ color: var(--gold-strong); }
+.gold b{
+  color: var(--gold-strong);
+  text-shadow: 0 0 6px rgba(255,210,74,.35);
+}
+
+/* 5) 列表與卡片：內容文字亮一點 */
+.card h3{ color: var(--muted-strong); }
+.list{
+  border-color:#475569;
+  background: rgba(2,6,23,.35);    /* 極淺底，讓內容浮起來 */
+}
+.list .row{ border-bottom-color:#425166; }
+
+/* 6) 狀態膠囊與裝備槽：邊界更清楚 */
+.pill{
+  background:#1a2230;
+  border-color:#2e3a4a;
+  color:#e9eef7;
+}
+.slot{
+  background:#121a26;
+  border-color:#4b5563;
+}
+
+/* 7) 對話框：提升對比與陰影 */
+dialog{
+  background:#0f1522;
+  color:var(--fg-strong);
+  box-shadow: 0 16px 40px rgba(0,0,0,.55);
+}
+
+/* 8) 鍵盤焦點可見性（無滑鼠操作時） */
+:focus-visible{
+  outline:2px solid var(--accent-strong);
+  outline-offset:2px;
+}
+
+/* 9) 文字強化：小字更清楚 */
+.tag, .hint, .muted{
+  color: var(--muted-strong);
+}
+
+/* 10) 商店價格/庫存行：數字更醒目 */
+#shopDlg .list .row .tag{ color:#c8d3e0; }
+#shopGold{ color: var(--gold-strong); }
+
+/* 11) 分隔線更可見但不刺眼 */
+.sep{ background: #334155; }
+
+/* 12) 滾動區背景更深、字體更亮 */
+.log{
+  background:#0a0f19;
+  color:#eaf2ff;
+  border-color:#415269;
+}
+  /* ✅ 顯示 HP／MP 百分比的顏色樣式 */
+.stat .pct{ margin-left:4px; opacity:.9 }
+.stat .pct.mid{ color: var(--gold); }
+.stat .pct.low{ color: var(--bad); font-weight:600; }
+
+  /*更新日誌用*/  
+  #updateLog {
+  background: var(--card);
+  border: 1px solid var(--dash);
+  border-radius: 12px;
+  margin: 12px auto;
+  padding: 10px 14px;
+  color: var(--fg);
+  font-size: 14px;
+}
+#updateLog .log-header {
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+}
+#updateLog .log-body {
+  margin-top: 8px;
+  border-top: 1px solid var(--dash);
+  padding-top: 8px;
+}
+#updateLog .log-date {
+  color: var(--accent);
+  font-size: 13px;
+}
+#updateLog .log-content {
+  line-height: 1.5;
+  font-size: 13px;
+}
+/* 分類標籤 */
+.cat{
+  display:inline-block;
+  font-weight:700;
+  padding:2px 6px;
+  border-radius:8px;
+  margin-right:8px;
+  background:var(--panel);
+  color:var(--muted);
+  border:1px solid var(--dash);
+  line-height:1;
+}
+
+/* 配色（可依喜好調） */
+.cat-weapon{ color:#60a5fa; }  /* 藍 */
+.cat-armor{  color:#34d399; }  /* 綠 */
+.cat-acc{    color:#f59e0b; }  /* 橘黃 */
+.cat-mount{  color:#a78bfa; }  /* 紫 */
+.cat-book{   color:#eab308; }  /* 金 */
+.cat-consum{ color:#94a3b8; }  /* 灰 */
+
+/* 星數 */
+.star{ font-weight:700; margin-left:2px; }
+/* ✅ 手機／窄螢幕排版：盡量一個畫面就能玩 */
+@media (max-width: 768px){
+  /* 手機版主畫面：改成一欄直排，右邊面板移到下面 */
+  .grid{
+    grid-template-columns:1fr;   /* ✅ 原本 1.4fr + 0.8fr → 改成 1 欄 */
+    gap:4px;
+    margin-top:4px;
+  }
+
+  /* 整體字體與寬度微調 */
+  body{
+    font-size:14px;
+  }
+  .wrap{
+    max-width:420px;
+    margin:0 auto;
+    padding:6px;
+  }
+
+  /* 按鈕略縮小一點 */
+  .btn{
+    padding:6px 8px;
+    font-size:13px;
+  }
+  .btn.small{
+    padding:5px 6px;
+    font-size:10px;
+  }
+
+  /* 冒險日誌高度壓低，留空間給右邊狀態＋裝備 */
+  .log{
+    height:15vh;
+    font-size:12px;
+  }
+
+  /* 探索／戰鬥按鈕兩欄排，省高度 */
+  .actions{
+    gap:4px;
+    margin-top:6px;
+  }
+  .actions .btn{
+    flex:1 1 calc(10% - 50px);
+    text-align:center;
+    padding:5px 3px;
+    font-size:10px;
+  }
+
+  /* 熱鍵提示在手機隱藏 */
+  .hint{
+    display:none;
+  }
+
+  /* 狀態面板：單欄排版，字再小一點 */
+  .stats{
+    grid-template-columns:1fr;
+    gap:4px;
+    margin-top:4px;
+  }
+  .stat{
+    padding:1px 5px;
+    font-size:12px;
+  }
+
+  /* 背包預覽：高度限制成小區塊，多的用捲動 */
+  .inv{
+    max-height:120px;
+    overflow:auto;
+  }
+
+  /* 敵人資訊：單欄 + HP 條加長 + 整塊高度縮小 */
+  .enemy{
+    grid-template-columns:1fr;  /* 一欄，HP 條吃滿寬度 */
+    gap:5px;
+  }
+  .enemy .stat{
+    padding:2px 5px;
+  }
+  .bar{
+    height:8px;
+  }
+
+  /* 手機只顯示 名稱／攻擊／HP，其餘隱藏 */
+  .enemy-extra{
+    display:none;
+  }
+
+  /* 裝備欄：3 欄，看起來像
+     武器｜防具｜飾品
+     匕首｜皮甲｜幸運戒指 */
+  .equip{
+    grid-template-columns:repeat(2,1fr);
+    gap:4px;
+  }
+  .slot{
+    min-height:1px;
+    padding:6px 4px;
+  }
+  .slot b{
+    margin-bottom:2px;
+    font-size:14px;
+  }
+
+  /* 次要按鈕在手機隱藏，用下拉取代 */
+  .secondary-btn{
+    display:none;
+  }
+  .more-menu{
+    display:inline-block;
+    margin-left:4px;
+  }
+}
+/*標題大小*/
+.topbar{
+  display:flex;
+  align-items:center;   /* 垂直置中 */
+  justify-content:flex-start;  /* 大家靠左排，取消兩端對齊 */
+  gap:16px;             /* 標題圖示和按鈕中間的距離 */
+}
+
+
+.title{
+  margin:0;             /* 避免標題區塊多餘空白 */
+  padding:0;
+}
+
+.title-img{
+  height:70px;          /* 控制 Logo 高度 */
+  width:auto;
+  display:block;
+  margin:0;
+}
+
+
+
+/*標題大小*/
